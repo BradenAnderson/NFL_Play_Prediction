@@ -13,10 +13,11 @@ library(data.table)
 # fwrite(x=df, file="./play_by_play_2019_to_2021.csv.gz", compress="gzip")
 
 
-df <- fread(input="./play_by_play_2019_to_2021.csv.gz", 
+df <- fread(input="./play_by_play_2018_to_2021.csv.gz", 
             na.strings=c("NA", ""), 
             data.table=FALSE           # data.table = FALSE means a data.frame is returned.
             )
+
 ```
 
 
