@@ -1,0 +1,67 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+
+library(data.table)
+
+# Code for zipping and saving a .csv file
+# fwrite(x=df, file="./play_by_play_2019_to_2021.csv.gz", compress="gzip")
+
+
+df <- fread(input="./play_by_play_2019_to_2021.csv.gz", 
+            na.strings=c("NA", ""), 
+            data.table=FALSE           # data.table = FALSE means a data.frame is returned.
+            )
+```
+
+
+```{r}
+
+head(df)
+```
+
+
+```{r}
+
+nrow(df)
+```
+
+
+```{r}
+
+# Make sure we only have 1st, 2nd, and 3rd downs.
+unique(df[,"down"])
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
