@@ -1,0 +1,61 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+
+source("./NFL_Project_Functions.R")
+
+# For loading  clean dataset from .csv
+#clean_df <- fread(input="./clean_play_by_play_2018_to_2021.csv.gz", 
+#            na.strings=c("NA", ""), 
+#            data.table=FALSE           # data.table = FALSE means a data.frame is returned.
+#            )
+
+
+# Function to load 2018-2021 play_by_play data, and save the clean dataset to a .csv.gz file.
+clean_df <- load_clean_data()
+
+```
+
+
+```{r}
+
+# sapply(clean_df, function(x) sum(is.na(x)))
+head(clean_df)
+```
+
+```{r}
+
+plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", x_rotation = 90, sorted=TRUE)
+                      
+```
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", target_level="run", x_rotation = 90, sorted=TRUE)
+```
+
+
+
+```{r}
+
+plot_categorical_proportions(df=clean_df, categorical_predictor="down")
+```
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="down", target_level="run", sorted=FALSE)
+```
+
+
+```{r}
+
+
+
+```
+
+
+
