@@ -57,7 +57,8 @@ get_additional_columns_to_remove <- function(){
                    'special_teams_play', 'st_play_type', 'special', 'end_clock_time', 'end_yard_line', 'order_sequence', 
                    'away_score', 'home_score', 'location', 'result', 'total', 'spread_line', 'total_line', 'success', 
                    'home_coach', 'away_coach', 'rusher', 'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 
-                   'out_of_bounds', 'play', 'pass_oe')
+                   'out_of_bounds', 'play', 'pass_oe', 'first_down_rush', 'first_down_pass', 'first_down_penalty',
+                   'incomplete_pass', 'rush_attempt', 'pass_attempt', 'complete_pass', 'series_success', 'first_down')
   
   return(remove_misc)
 }
@@ -155,6 +156,16 @@ apply_column_filters <- function(df){
   
   # Remove all columns found in the columns_to_remove vector
   df <- df[,!(names(df) %in% columns_to_remove)]
+  
+  return(df)
+}
+
+generate_new_features <- function(df){
+  
+  # Generate the home field advantage feature
+  # home_field_adv = 1 if the home team has possession
+  # home_field_adv = 0 if the home team doesn't have possession
+  df <- df %>% mutate(home_field_adv = if_else(home_team == posteam, 1, 0))
   
   return(df)
 }

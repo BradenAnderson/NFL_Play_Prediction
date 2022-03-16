@@ -8,10 +8,11 @@ load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL){
   # 2018- 2021 has 195134 rows, 372 columns
   df <- as.data.frame(nflfastR::load_pbp(start_year:end_year))
   
-  
   # Filter on row-based conditions. e.g., downs=1,2,3, play_type="run","pass"
   df <- apply_row_filters(df)
   
+  # Generate new features (e.g. home_field_adv)
+  df <- generate_new_features(df)
   
   # Filter based on column-based conditions
   df <- apply_column_filters(df)
