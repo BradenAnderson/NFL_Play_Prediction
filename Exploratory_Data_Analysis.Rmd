@@ -31,6 +31,8 @@ head(clean_df)
 ```{r}
 nrow(clean_df)
 ```
+
+
 ```{r}
 length(names(clean_df))
 ```
@@ -42,10 +44,11 @@ plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", x_rot
                       
 ```
 
+
 ```{r}
 plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", target_level="run", x_rotation = 90, sorted=TRUE)
-```
 
+```
 
 
 ```{r}
@@ -59,11 +62,7 @@ plot_categorical_proportions(df=clean_df, categorical_predictor="down", target_l
 ```
 
 
-```{r}
 
-
-
-```
 
 
 
