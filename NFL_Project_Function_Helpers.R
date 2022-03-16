@@ -31,17 +31,35 @@ library(tidyverse)
 
 get_additional_columns_to_remove <- function(){
   
-  cols_remove <- c('id', 'week', 'qtr', 'side_of_field', 'drive', 'sp', 
-                   'time', 'yrdln', 'ydsnet', 'desc', 'qb_kneel', 'pass_length', 
-                   'pass_location', 'air_yards', 'yards_after_catch', 'run_location', 'run_gap', 
-                   'field_goal_result', 'kick_distance', 'extra_point_result', 'two_point_conv_result', 
-                   'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 'timeout_team', 'td_team', 
-                   'total_home_score', 'total_away_score', 'posteam_score','defteam_score', 'posteam_score_post', 
-                   'defteam_score_post', 'score_differential_post', 'extra_point_prob', 'two_point_conversion_prob', 
-                   'game_half', 'posteam_type', 'play_type_nfl')
+  #cols_remove <- c('id', 'week', 'qtr', 'side_of_field', 'drive', 'sp', 
+  #                 'time', 'yrdln', 'ydsnet', 'desc', 'qb_kneel', 'pass_length', 
+  #                 'pass_location', 'air_yards', 'yards_after_catch', 'run_location', 'run_gap', 
+  #                 'field_goal_result', 'kick_distance', 'extra_point_result', 'two_point_conv_result', 
+  #                 'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 'timeout_team', 'td_team', 
+  #                 'total_home_score', 'total_away_score', 'posteam_score','defteam_score', 'posteam_score_post', 
+  #                 'defteam_score_post', 'score_differential_post', 'extra_point_prob', 'two_point_conversion_prob', 
+  #                 'game_half', 'posteam_type', 'play_type_nfl')
   
   
-  return(cols_remove)
+  
+  remove_misc <- c('home_team', 'away_team', 'game_date', 'season', 'season_type', 'stadium', 
+                   'game_stadium', 'weather', 'id', 'week', 'qtr', 'side_of_field', 'drive', 
+                   'sp', 'time', 'start_time', 'time_of_day', 'play_clock', 'yrdln', 'ydsnet', 
+                   'desc', 'sack', 'interception', 'touchback', "two_point_attempt", "field_goal_attempt", 
+                   'return_yards', 'pass_length', 'pass_location', 'air_yards', 'yards_after_catch', 
+                   'run_location', 'run_gap', 'field_goal_result', 'kick_distance', 'two_point_conv_result', 
+                   'safety', 'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 'timeout_team', 
+                   'td_team', 'total_home_score', 'total_away_score', 'posteam_score','defteam_score', 
+                   'posteam_score_post', 'defteam_score_post', 'score_differential_post', 'two_point_conversion_prob', 
+                   "defensive_two_point_attempt", "defensive_two_point_conv", 'game_half', 'posteam_type', 
+                   'return_team', 'penalty_team', 'penalty', 'penalty_type', 'play_deleted', 'aborted_play', 
+                   'series_result', "replay_or_challenge", "replay_or_challenge_result", 'play_type_nfl', 
+                   'special_teams_play', 'st_play_type', 'special', 'end_clock_time', 'end_yard_line', 'order_sequence', 
+                   'away_score', 'home_score', 'location', 'result', 'total', 'spread_line', 'total_line', 'success', 
+                   'home_coach', 'away_coach', 'rusher', 'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 
+                   'out_of_bounds', 'play', 'pass_oe')
+  
+  return(remove_misc)
 }
 
 
@@ -51,10 +69,11 @@ apply_row_filters <- function(df){
   # Filter rows to only 1st, 2nd, and 3rd down.
   df <- df[df[,"down"] %in% c(1,2,3),]
   
-  
   # Filter rows to only "run" and "pass" play_types
   df <- df[df[,"play_type"] %in% c("run", "pass"),]
   
+  # Filter to only regular season games (no playoffs)
+  df <- df[df[,"season_type"] == "REG",]
   
   return(df)
 }
@@ -82,12 +101,57 @@ apply_column_filters <- function(df){
   # 9 column names returned
   punt_columns <- grep(pattern="^punt_", x=colnames(df), value=TRUE) 
   
+  
+  # Returns an assortment of 14 column names that include some digit folowed by the phrase "_team"
+  # Examples: 1) forced_fumble_player_1_team, 2) solo_tackle_1_team, 3) assist_tackle_1_team. 4) fumble_recovery_1_team
+  # All of these columns contain information that wouldn't be known before the play is run.
+  # They are also mostly all missing values anyways.
+  numeric_team_columns <- grep(pattern="[[:digit:]]_team", x=colnames(df), value=TRUE)
+  
+  # Columns pertaining to kickoffs, which are not related to run and pass plays.
+  kickoff_columns <- grep(pattern="kickoff", x=colnames(df), value=TRUE)
+  
+  # Columns, pertaining to fumbles, which are not known prior to the play.
+  fumble_columns <- grep(pattern="^fumble", x=colnames(df), value=TRUE)
+  
+  # Returns a wide variety of column names, however none of these are important for run and pass play modeling.
+  # Examples: "extra_point_result", "extra_point_prob", "extra_point_attempt", "defensive_extra_point_attempt",
+  #           "defensive_extra_point_conv", "fixed_drive", "fixed_drive_result", "xyac_epa", "xyac_mean_yardage", 
+  #           "xyac_median_yardage", "xyac_success", "xyac_fd", "xpass"    
+  x_columns <- grep(pattern="x", x=colnames(df), value=TRUE) 
+  
+  # Returns a collection of columns about "lateral_" statistics.
+  # Examples: "lateral_reception", "lateral_rush", "lateral_kickoff_returner_player_name". 
+  lateral_columns <- grep(pattern="^lateral_", x=colnames(df), value=TRUE) 
+  
+  # Returns four columns relating to scoring a touchdown on the play
+  # touchdown, pass_touchdown, rush_touchdown, return_touchdown
+  touchdown_columns <- grep(pattern="touchdown", x=colnames(df), value=TRUE)
+  
+  # Returns a collection of columns pertaining to tackles that occurred on the play
+  tackle_columns <- grep(pattern="tackle", x=colnames(df), value=TRUE)
+  
+  # Returns columns related to converting 3rd and 4th down:
+  # Examples: third_down_converted, third_down_failed, fourth_down_converted, fourth_down_failed
+  conversion_columns <- grep(pattern="down_['c-f']", x=colnames(df), value=TRUE)
+  
+  # Returns columns related to quarterback actions on the play.
+  # Examples: qb_dropbackm qb_kneel, qb_spike, qb_scramble, qb_epa
+  quarterback_columns <- grep(pattern="^qb_", x=colnames(df), value=TRUE) 
+  
+  # Returns columns relating to drive statistics.
+  # Examples: drive_real_start_time, drive_play_count, drive_time_of_possession, drive_first_downs
+  drive_columns <- grep(pattern="^drive_", x=colnames(df), value=TRUE) 
+  
   # Grabbing a list of other assorted column names that need to be removed.
   additional_columns <- get_additional_columns_to_remove()
   
   # Combine all the above columns into a single vector
   columns_to_remove <- c(additional_columns, punt_columns, jersey_number_columns, 
-                         epa_columns, name_columns, id_columns)
+                         epa_columns, name_columns, id_columns, numeric_team_columns,
+                         kickoff_columns, fumble_columns, x_columns, lateral_columns, 
+                         touchdown_columns, tackle_columns, conversion_columns, quarterback_columns,
+                         drive_columns)
   
   # Remove all columns found in the columns_to_remove vector
   df <- df[,!(names(df) %in% columns_to_remove)]

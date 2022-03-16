@@ -53,9 +53,41 @@ plot_categorical_proportions(df=clean_df, categorical_predictor="down", target_l
 
 ```{r}
 
+source("./NFL_Project_Functions.R")
 
+clean_df <- load_clean_data()
+
+head(clean_df)
+```
+
+```{r}
+
+# 1) quarter_seconds_remaining, half_seconds_remaining, game_seconds_remaining, do we really need all three? I could see this causing 
+#    issues with calculating parameter estimates because the columns are dependent. Given the number of seconds left in the game, it is always
+#    a straight forward calculation to know exactly how much time is left in the half and the quarter. Another way to think about it, these features
+#    are more related to each other than they are to the response, so its not a good idea to use them all.
+#
+#    You can investigate this by fitting a logistic regression model that uses them all, and then checking for collinearity like this:
+#
+#   
+
+
+#clean_df[,"play_type"] <- factor(clean_df[,"play_type"])
+#small_df <- clean_df[,c("play_type", "quarter_seconds_remaining", "half_seconds_remaining", "game_seconds_remaining")]
+
+#logreg <- stats::glm(formula=play_type~quarter_seconds_remaining+half_seconds_remaining+game_seconds_remaining, data=small_df, family="binomial")
+#colinearity <- performance::check_collinearity(logreg)
 
 ```
+
+
+```{r}
+
+missings <- sapply(clean_df, function(x) sum(is.na(x)))
+missings[missings > 0]
+```
+
+
 
 
 
