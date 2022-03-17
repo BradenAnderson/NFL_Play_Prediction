@@ -42,23 +42,21 @@ get_additional_columns_to_remove <- function(){
   
   
   
-  remove_misc <- c('home_team', 'away_team', 'game_date', 'season', 'season_type', 'stadium', 
-                   'game_stadium', 'weather', 'id', 'week', 'qtr', 'side_of_field', 'drive', 
-                   'sp', 'time', 'start_time', 'time_of_day', 'play_clock', 'yrdln', 'ydsnet', 
-                   'desc', 'sack', 'interception', 'touchback', "two_point_attempt", "field_goal_attempt", 
-                   'return_yards', 'pass_length', 'pass_location', 'air_yards', 'yards_after_catch', 
-                   'run_location', 'run_gap', 'field_goal_result', 'kick_distance', 'two_point_conv_result', 
-                   'safety', 'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 'timeout_team', 
-                   'td_team', 'total_home_score', 'total_away_score', 'posteam_score','defteam_score', 
-                   'posteam_score_post', 'defteam_score_post', 'score_differential_post', 'two_point_conversion_prob', 
-                   "defensive_two_point_attempt", "defensive_two_point_conv", 'game_half', 'posteam_type', 
-                   'return_team', 'penalty_team', 'penalty', 'penalty_type', 'play_deleted', 'aborted_play', 
-                   'series_result', "replay_or_challenge", "replay_or_challenge_result", 'play_type_nfl', 
-                   'special_teams_play', 'st_play_type', 'special', 'end_clock_time', 'end_yard_line', 'order_sequence', 
-                   'away_score', 'home_score', 'location', 'result', 'total', 'spread_line', 'total_line', 'success', 
-                   'home_coach', 'away_coach', 'rusher', 'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 
-                   'out_of_bounds', 'play', 'pass_oe', 'first_down_rush', 'first_down_pass', 'first_down_penalty',
-                   'incomplete_pass', 'rush_attempt', 'pass_attempt', 'complete_pass', 'series_success', 'first_down')
+  remove_misc <- c('game_date', 'season', 'season_type', 'stadium', 'game_stadium', 'weather', 'id', 'week', 
+                   'qtr', 'side_of_field', 'drive', 'sp', 'time', 'start_time', 'time_of_day', 'play_clock', 
+                   'quarter_end', 'yrdln', 'ydsnet', 'desc', 'sack', 'interception', 'touchback', "two_point_attempt", 
+                   "field_goal_attempt", 'return_yards', 'pass_length', 'pass_location', 'air_yards', 
+                   'yards_after_catch', 'run_location', 'run_gap', 'field_goal_result', 'kick_distance', 
+                   'two_point_conv_result', 'safety', 'home_timeouts_remaining', 'away_timeouts_remaining', 
+                   'timeout', 'score_differential_post', "no_score_prob", "opp_fg_prob", "opp_td_prob", "safety_prob", 
+                   'two_point_conversion_prob', "defensive_two_point_attempt", "defensive_two_point_conv", 
+                   'game_half', 'penalty', 'penalty_type', 'play_deleted', 'aborted_play', 'series_result', 
+                   "replay_or_challenge", "replay_or_challenge_result", 'play_type_nfl', 'st_play_type', 'special', 
+                   'rush_attempt', 'pass_attempt', 'series_success', 'end_clock_time', 'end_yard_line', 
+                   'order_sequence', 'away_score', 'home_score', 'location', 'result', 'total', 'spread_line', 
+                   'success', 'home_coach', 'away_coach', 'rusher', 'receiver', 'passer', 'name', 'pass', 
+                   'rush', 'fantasy', 'out_of_bounds', 'play', 'pass_oe', "vegas_home_wpa", "vegas_home_wp", 
+                   "def_wp", "home_wp", "away_wp", "home_wp_post", "away_wp_post", "comp_air_wpa", "comp_yac_wpa")
   
   return(remove_misc)
 }
@@ -93,6 +91,12 @@ apply_column_filters <- function(df){
   # Returns the name of all columns that end in "_epa"
   # 20 column names returned. 
   epa_columns <- grep(pattern="_epa$", x=colnames(df), value=TRUE)
+  
+  # Returns all column names containing the word "team"
+  team_columns <- grep(pattern="team", x=colnames(df), value=TRUE) 
+  
+  # Returns all columns starting with the word "total".
+  total_columns <- grep(pattern="^total_", x=colnames(df), value=TRUE)
   
   # Returns the name of all columns that end in "jersey_number"
   # 20 column names returned. 
@@ -152,7 +156,7 @@ apply_column_filters <- function(df){
                          epa_columns, name_columns, id_columns, numeric_team_columns,
                          kickoff_columns, fumble_columns, x_columns, lateral_columns, 
                          touchdown_columns, tackle_columns, conversion_columns, quarterback_columns,
-                         drive_columns)
+                         drive_columns, team_columns, total_columns)
   
   # Remove all columns found in the columns_to_remove vector
   df <- df[,!(names(df) %in% columns_to_remove)]
@@ -267,5 +271,98 @@ factor_to_numeric <- function(df, col_name){
 
 
 
-
+check_first_down_features <- function(df, play_type_to_check="run"){
+  
+  if(play_type_to_check == "run"){
+    first_down_column = "first_down_rush"
+  }else if(play_type_to_check == "pass"){
+    first_down_column = "first_down_pass"
+  }
+  
+  filepath <- paste0("./", play_type_to_check, "_first_down_col_check.txt")
+  
+  # Previous iterations value of first_down_column
+  prev_down_col_value <- -1 
+  
+  # Number of times first_down_column = 1
+  total_down_col_counts <- 0
+  
+  play_type_disagreements <- 0
+  play_type_agreements <- 0
+  play_type_disagreement_rows <- c()
+  
+  down_number_agreements <- 0
+  down_number_disagreements <- 0
+  down_number_disagreement_rows <- c()
+  
+  total_iterations <- 0
+  
+  for(row_index in 1:nrow(df)){
+    
+    total_iterations <- total_iterations + 1
+    
+    # Current value of first_down_column
+    curr_down_col_value <- df[row_index, first_down_column]
+    
+    # Current value of play_type
+    current_play_type <- df[row_index, "play_type"]
+    
+    # current down
+    current_down <- df[row_index, "down"]
+    
+    # LOOKING FOR PLAY TYPE DISAGREEMENTS
+    # If we ever have a mismatch on the play_type run and first_down_column result
+    # Example: if we ever had first_down_pass = 1 but play_type wasn't pass, track that here. 
+    if(curr_down_col_value == 1 & current_play_type != play_type_to_check){
+      
+      # Increment number of times where first_down_column=1 but the play wasn't of the same play_type
+      play_type_disagreements <- play_type_disagreements + 1
+      play_type_disagreement_rows <- append(x=play_type_disagreement_rows, values=row_index)
+      
+      # Increment the total number of times where first_down_column=1
+      total_down_col_counts <- total_down_col_counts + 1
+      
+    }else if(curr_down_col_value == 1 & current_play_type == play_type_to_check){
+      
+      # No disagreement case
+      # Increment the total number of times where first_down_column=1 and number of agreements
+      total_down_col_counts <- total_down_col_counts + 1
+      play_type_agreements <- play_type_agreements + 1
+      
+    }
+    
+    
+    # DOWN NUMBER DISAGREEMENT CHECK
+    # If in the previous iteration of the loop, we had first_down_column = 1, check if this next down is first down
+    # 
+    # Occurs when previous iteration had first_down_col=1 but this iteration is not a first down
+    if(prev_down_col_value == 1 & current_down != 1){
+      down_number_disagreements <- down_number_disagreements +1
+      down_number_disagreement_rows <- append(x=down_number_disagreement_rows, values=row_index)
+      
+    }else if(prev_down_col_value == 1 & current_down == 1){
+      down_number_agreements <- down_number_agreements + 1
+    }
+    
+    prev_down_col_value <- curr_down_col_value
+  }
+  
+  cat("=========================================\n", file=filepath)
+  cat("         FIRST DOWN COLUMN --> ", play_type_to_check, "          \n", file=filepath, append=TRUE)
+  cat("\n=========================================\n\n", file=filepath, append=TRUE)
+  cat("Total instances where first_down_", play_type_to_check, "=1: ", total_down_col_counts, "\n\n", file=filepath, append=TRUE) 
+  
+  cat("Total instances where the associated play_type WAS ", play_type_to_check, ": ", play_type_agreements, "\n", file=filepath, append=TRUE)
+  cat("Total instances where the associated play_type WAS NOT ", play_type_to_check, ": ", play_type_disagreements, "\n", file=filepath, append=TRUE)
+  cat("Associated Row Numbers", play_type_disagreement_rows, "\n\n", file=filepath, append=TRUE)
+  
+  cat("Total instances where the NEXT play WAS a first down: ", down_number_agreements, "\n", file=filepath,  append=TRUE)
+  cat("Total instances where the NEXT play WAS NOT a first down: ", down_number_disagreements, "\n", file=filepath,  append=TRUE)
+  cat("Associated Row Numbers", down_number_disagreement_rows, "\n\n", file=filepath, append=TRUE)
+  
+  return(list(play_type_disagreements=play_type_disagreements, 
+              down_number_disagreements=down_number_disagreements, 
+              total_down_col_counts=total_down_col_counts,
+              total_iterations=total_iterations))
+}
 
