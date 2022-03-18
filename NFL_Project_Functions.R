@@ -11,12 +11,19 @@ load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL){
   # Filter on row-based conditions. e.g., downs=1,2,3, play_type="run","pass"
   df <- apply_row_filters(df)
   
+  # Fillin missing values
+  df <- fillin_missing_values(df)
+  
   # Generate new features (e.g. home_field_adv)
   df <- generate_new_features(df)
   
   # Filter based on column-based conditions
   df <- apply_column_filters(df)
   
+  
+  # Leave this operation at the end.
+  # Set all variables to the appropriate datatype
+  df <- set_datatypes(df)
   
   # Save the clean dataset to a compressed .csv file
   full_save_path <- save_dataset_to_file(df=df, 

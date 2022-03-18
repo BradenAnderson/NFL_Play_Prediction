@@ -31,32 +31,23 @@ library(tidyverse)
 
 get_additional_columns_to_remove <- function(){
   
-  #cols_remove <- c('id', 'week', 'qtr', 'side_of_field', 'drive', 'sp', 
-  #                 'time', 'yrdln', 'ydsnet', 'desc', 'qb_kneel', 'pass_length', 
-  #                 'pass_location', 'air_yards', 'yards_after_catch', 'run_location', 'run_gap', 
-  #                 'field_goal_result', 'kick_distance', 'extra_point_result', 'two_point_conv_result', 
-  #                 'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 'timeout_team', 'td_team', 
-  #                 'total_home_score', 'total_away_score', 'posteam_score','defteam_score', 'posteam_score_post', 
-  #                 'defteam_score_post', 'score_differential_post', 'extra_point_prob', 'two_point_conversion_prob', 
-  #                 'game_half', 'posteam_type', 'play_type_nfl')
-  
-  
-  
-  remove_misc <- c('game_date', 'season', 'season_type', 'stadium', 'game_stadium', 'weather', 'id', 'week', 
-                   'qtr', 'side_of_field', 'drive', 'sp', 'time', 'start_time', 'time_of_day', 'play_clock', 
-                   'quarter_end', 'yrdln', 'ydsnet', 'desc', 'sack', 'interception', 'touchback', "two_point_attempt", 
-                   "field_goal_attempt", 'return_yards', 'pass_length', 'pass_location', 'air_yards', 
-                   'yards_after_catch', 'run_location', 'run_gap', 'field_goal_result', 'kick_distance', 
-                   'two_point_conv_result', 'safety', 'home_timeouts_remaining', 'away_timeouts_remaining', 
-                   'timeout', 'score_differential_post', "no_score_prob", "opp_fg_prob", "opp_td_prob", "safety_prob", 
-                   'two_point_conversion_prob', "defensive_two_point_attempt", "defensive_two_point_conv", 
-                   'game_half', 'penalty', 'penalty_type', 'play_deleted', 'aborted_play', 'series_result', 
-                   "replay_or_challenge", "replay_or_challenge_result", 'play_type_nfl', 'st_play_type', 'special', 
-                   'rush_attempt', 'pass_attempt', 'series_success', 'end_clock_time', 'end_yard_line', 
-                   'order_sequence', 'away_score', 'home_score', 'location', 'result', 'total', 'spread_line', 
-                   'success', 'home_coach', 'away_coach', 'rusher', 'receiver', 'passer', 'name', 'pass', 
-                   'rush', 'fantasy', 'out_of_bounds', 'play', 'pass_oe', "vegas_home_wpa", "vegas_home_wp", 
-                   "def_wp", "home_wp", "away_wp", "home_wp_post", "away_wp_post", "comp_air_wpa", "comp_yac_wpa")
+
+  remove_misc <- c('game_date', 'season', 'season_type', 'stadium', 'game_stadium', 'weather', 
+                   'id', 'week', 'qtr', 'side_of_field', 'drive', 'sp', 'time', 'start_time', 
+                   'time_of_day', 'play_clock', 'quarter_end', 'yrdln', 'ydsnet', 'desc', 'sack', 
+                   'touchback', 'no_huddle', 'shotgun', 'complete_pass', 'incomplete_pass', 
+                   "two_point_attempt", "field_goal_attempt", 'pass_length', 'pass_location', 
+                   'run_location', 'run_gap', 'field_goal_result', 'kick_distance', 'two_point_conv_result', 
+                   'safety', 'home_timeouts_remaining', 'away_timeouts_remaining', 'timeout', 
+                   'score_differential_post', "no_score_prob", "opp_fg_prob", 'opp_safety_prob', 
+                   "opp_td_prob", "safety_prob", 'two_point_conversion_prob', "defensive_two_point_attempt", 
+                   "defensive_two_point_conv", 'game_half', 'penalty', 'penalty_type', 'play_deleted', 
+                   'aborted_play', 'series_result', 'play_type_nfl', 'st_play_type', 'special', 'rush_attempt', 
+                   'pass_attempt', 'series', 'series_success', 'end_clock_time', 'end_yard_line', 
+                   'order_sequence', 'away_score', 'home_score', 'location', 'surface', 'result', 
+                   'total', 'spread_line', 'success', 'home_coach', 'away_coach', 'rusher', 
+                   'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 'out_of_bounds', 
+                   'play', 'pass_oe', 'cpoe', 'wpa', 'quarter_seconds_remaining')
   
   return(remove_misc)
 }
@@ -90,7 +81,14 @@ apply_column_filters <- function(df){
   
   # Returns the name of all columns that end in "_epa"
   # 20 column names returned. 
-  epa_columns <- grep(pattern="_epa$", x=colnames(df), value=TRUE)
+  # epa_columns <- grep(pattern="_epa$", x=colnames(df), value=TRUE)
+  
+  # Returns all columns containing ep
+  ep_columns <- grep(pattern="ep", x=colnames(df), value=TRUE)
+  
+  # Returns all columns containing "wp_"
+  # 13 cols; keeps "wp"
+  wp_columns <- grep(pattern="_wp", x=colnames(df), value=TRUE) 
   
   # Returns all column names containing the word "team"
   team_columns <- grep(pattern="team", x=colnames(df), value=TRUE) 
@@ -106,6 +104,8 @@ apply_column_filters <- function(df){
   # 9 column names returned
   punt_columns <- grep(pattern="^punt_", x=colnames(df), value=TRUE) 
   
+  # Returns columns containing "yards"
+  yards_columns <- grep(pattern="yards", x=colnames(df), value=TRUE) # 8 cols
   
   # Returns an assortment of 14 column names that include some digit folowed by the phrase "_team"
   # Examples: 1) forced_fumble_player_1_team, 2) solo_tackle_1_team, 3) assist_tackle_1_team. 4) fumble_recovery_1_team
@@ -148,15 +148,19 @@ apply_column_filters <- function(df){
   # Examples: drive_real_start_time, drive_play_count, drive_time_of_possession, drive_first_downs
   drive_columns <- grep(pattern="^drive_", x=colnames(df), value=TRUE) 
   
+  # Returns columns starting with "first"
+  first_columns <- grep(pattern="^first_", x=colnames(df), value=TRUE) 
+  
   # Grabbing a list of other assorted column names that need to be removed.
   additional_columns <- get_additional_columns_to_remove()
   
   # Combine all the above columns into a single vector
   columns_to_remove <- c(additional_columns, punt_columns, jersey_number_columns, 
-                         epa_columns, name_columns, id_columns, numeric_team_columns,
+                         ep_columns, name_columns, id_columns, numeric_team_columns,
                          kickoff_columns, fumble_columns, x_columns, lateral_columns, 
                          touchdown_columns, tackle_columns, conversion_columns, quarterback_columns,
-                         drive_columns, team_columns, total_columns)
+                         drive_columns, team_columns, total_columns, wp_columns, team_columns,
+                         yards_columns, first_columns)
   
   # Remove all columns found in the columns_to_remove vector
   df <- df[,!(names(df) %in% columns_to_remove)]
@@ -169,11 +173,30 @@ generate_new_features <- function(df){
   # Generate the home field advantage feature
   # home_field_adv = 1 if the home team has possession
   # home_field_adv = 0 if the home team doesn't have possession
-  df <- df %>% mutate(home_field_adv = if_else(home_team == posteam, 1, 0))
+  # df <- df %>% mutate(home_field_adv = if_else(home_team == posteam, 1, 0))
+  
+  df[,"vegaswp"] <- df[,"vegas_wp"]
   
   return(df)
 }
 
+fillin_missing_values <- function(df){
+  
+  # Fillin missing values in the "wind" column with zero
+  df[is.na(df[,"wind"]),"wind"] <- 0
+  
+  # Fillin missing values in the "temp" column with 75
+  df[is.na(df[,"temp"]), "temp"] <- 75
+  
+  # Fillin missing values in "roof" with "retractable"
+  df[is.na(df[,"roof"]), "roof"] <- 'retractable'
+  
+  #Fillin missing value in "cp" column with the mean
+  mean_cp <- mean(df[!is.na(df[,"cp"]),"cp"])
+  df[is.na(df[,"cp"]),"cp"] <- mean_cp
+  
+  return(df)
+}
 
 save_dataset_to_file <- function(df, save_path, start_year, end_year, base_save_name="clean_play_by_play_"){
   
@@ -191,6 +214,45 @@ save_dataset_to_file <- function(df, save_path, start_year, end_year, base_save_
   return(full_save_path)
 }
 
+
+get_numeric_variables <- function(){
+  
+  numeric_variables <- c("yardline_100", "ydstogo", "fg_prob", "td_prob", "wp", "vegaswp", "cp", "temp", "wind", 
+                         "half_seconds_remaining", "game_seconds_remaining", "score_differential")
+  
+  return(numeric_variables)
+}
+
+get_categorical_variables <- function(){
+  
+  categorical_variables <- c("goal_to_go", "div_game", "roof", "down")
+  
+  return(categorical_variables)
+}
+
+set_datatypes <- function(df){
+  
+  numeric_vars <- get_numeric_variables()
+  
+  for(numeric_index in 1:length(numeric_vars)){
+    
+    numeric_variable_name <- numeric_vars[[numeric_index]]
+    
+    df[,numeric_variable_name] <- as.numeric(df[,numeric_variable_name])
+  }
+  
+  categorical_vars <- get_categorical_variables()
+  
+  for(categorical_index in 1:length(categorical_vars)){
+    
+    categorical_variable_name <- categorical_vars[[categorical_index]]
+    
+    df[,categorical_variable_name] <- factor(df[,categorical_variable_name])
+    
+  }
+  
+  return(df)
+}
 
 # =================================================== END DATA CLEANING FUNCTIONS ===================================================
 
@@ -271,6 +333,9 @@ factor_to_numeric <- function(df, col_name){
 
 
 
+
+
+
 check_first_down_features <- function(df, play_type_to_check="run"){
   
   if(play_type_to_check == "run"){
@@ -330,7 +395,6 @@ check_first_down_features <- function(df, play_type_to_check="run"){
       play_type_agreements <- play_type_agreements + 1
       
     }
-    
     
     # DOWN NUMBER DISAGREEMENT CHECK
     # If in the previous iteration of the loop, we had first_down_column = 1, check if this next down is first down

@@ -29,10 +29,16 @@ head(clean_df)
 ```
 
 ```{r}
-nrow(clean_df)
+
+names(clean_df)
+
 ```
 
 
+
+```{r}
+nrow(clean_df)
+```
 ```{r}
 length(names(clean_df))
 ```
@@ -40,29 +46,191 @@ length(names(clean_df))
 
 ```{r}
 
-plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", x_rotation = 90, sorted=TRUE)
-                      
+# CATEGORICAL RESPONSE --> play_type
+
+# NUMERIC VARIABLES
+# 1) yardline_100 --> Numeric distance in the number of yards from the opponent's endzone for the posteam.
+# 2) ydstogo --> Numeric yards in distance from either the first down marker or the endzone in goal down situations.
+# 3) fg_prob -- > Predicted probability of the posteam scoring a FG next.
+# 4) td_prob --> Predicted probability of the posteam scoring a TD next.
+# 5) wp --> Estimated win probability for the posteam given the current situation at the start of the given play.
+# 6) vegaswp --> Estimated win probabiity for the posteam given the current situation at the start of the given play, incorporating pre-game Vegas line.
+# 7) cp --> Numeric value indicating the probability for a complete pass based on comparable game situations.
+# 8) temp --> The temperature at the stadium only for 'roof' = 'outdoors' or 'open'.(Source: Pro-Football-Reference)
+# 9) wind --> The speed of the wind in miles/hour only for 'roof' = 'outdoors' or 'open'. 
+# 10) half_seconds_remaining --> Numeric seconds remaining in the half.
+# 11) game_seconds_remaining --> Numeric seconds remaining in the game.
+# 12) score_differential --> Score differential between the posteam and defteam at the start of the play.
+
+# CATEGORICAL VARIABLES
+# 13) goal_to_go --> Binary indicator for whether or not the posteam is in a goal down situation.
+# 14) div_game -->
+# 15) roof --> 
+# 16) down --> 
+
 ```
 
 
 ```{r}
-plot_categorical_proportions(df=clean_df, categorical_predictor="posteam", target_level="run", x_rotation = 90, sorted=TRUE)
+
+missing_columns <- sapply(clean_df, function(x) sum(is.na(x)))
+missing_columns[missing_columns >  0]
+
+```
+
+
+
+
+
+```{r}
+
+# relief_variable_setup <- function(df, features, binary_target, target_levels=c(0,1)){
+#   
+#   new_df <- df[,(names(df) %in% features)]
+#   new_df[, "binary_target"] <- df[,binary_target]
+#   new_df$binary_target <- factor(new_df$binary_target, levels=target_levels)
+#   return(new_df)
+#   
+# }
+# 
+# 
+# get_relief_score_df <- function(rs){
+#   
+#   wide_df <- spread(rs$permutations, Predictor, value)
+#   
+#   rs_names <- names(rs$standardized)
+#   
+#   for(name_index in 1:length(rs_names)){
+#     
+#     feature_name <- rs_names[name_index]
+#     
+#     std_score <- rs$standardized[feature_name][[1]]
+#     observed_score <- rs$observed[feature_name][[1]]
+#     
+#     std_name <- paste0(feature_name, "_std_score")
+#     obs_name <- paste0(feature_name, "_obs_score")
+#     
+#     wide_df[,std_name] <- std_score
+#     wide_df[,obs_name] <- observed_score
+#   }
+#   
+#   wide_df[,"estimator"] <- rs$options[[1]]
+#   wide_df[,"relief_iterations"] <- rs$options[[2]]
+#   
+#   return(wide_df)
+#   
+# }
+# 
+# # Filter on column name
+# filter_relief_df <- function(relief_df, score_type){
+#   
+#   if(score_type == "standardized"){
+#     relief_df <- relief_df[,str_subset(names(relief_df), "_std_score")]
+#   }
+#   else if(score_type == "observed"){
+#     relief_df <- relief_df[,str_subset(names(relief_df), "_obs_score")]
+#   }
+#   return(relief_df)
+# }
+# 
+# rename_relief_columns <- function(relief_df){
+#   
+#   current_names <- names(relief_df)
+#   
+#   for(name_index in 1:length(current_names)){
+#     
+#     current_name <- current_names[name_index]
+#     new_name <- str_split(current_name, pattern="_", simplify=TRUE)[[1]]
+#     
+#     # Add the new name and remove hte old one
+#     relief_df[,new_name] <- relief_df[,current_name]
+#     relief_df <- relief_df[,!(names(relief_df) %in% current_name)]
+#   }
+#   
+#   return(relief_df)
+# }
+# 
+# 
+# 
+# prepare_relief_df <- function(relief_df, score_type){
+#   
+#   relief_df <- filter_relief_df(relief_df=relief_df, 
+#                                 score_type=score_type)
+#   
+#   relief_df <- rename_relief_columns(relief_df=relief_df)
+#   
+#   relief_df <- relief_df[1,]
+#   
+#   long_df <- melt(relief_df, 
+#                   measure.vars=names(relief_df), 
+#                   variable.name="feature",
+#                   value.name="score")
+#   
+#   if(score_type == "standardized"){
+#     long_df[,"score"] <- abs(long_df[,"score"])
+#   }
+#   
+#   return(long_df)
+#   
+# }
+
+
+```
+
+
+
+```{r}
+
+library(AppliedPredictiveModeling)
+
+relief <- AppliedPredictiveModeling::permuteRelief(x=clean_df[,(names(clean_df) != "play_type")], 
+                                                   y=clean_df[,"play_type"], 
+                                                   estimator="ReliefFequalK",
+                                                   nperm=50)
+
+
+clean_df[,(names(clean_df) != "play_type")]
+```
+
+
+
+
+```{r}
+
+
+```
+
+
+
+
+```{r}
+
+
+p <- ggplot(data=clean_df)+
+  geom_boxplot(mapping=aes(x=play_type, y=ydstogo))
+
+p
+```
+
+
+
+
+```{r}
+
 
 ```
 
 
 ```{r}
 
-plot_categorical_proportions(df=clean_df, categorical_predictor="down")
 ```
 
 
 ```{r}
-plot_categorical_proportions(df=clean_df, categorical_predictor="down", target_level="run", sorted=FALSE)
+
+
+
 ```
-
-
-
 
 
 
