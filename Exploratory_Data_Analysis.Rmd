@@ -23,10 +23,15 @@ clean_df <- load_clean_data()
 
 
 ```{r}
+sapply(clean_df, class)
+```
 
+```{r}
 # sapply(clean_df, function(x) sum(is.na(x)))
 head(clean_df)
 ```
+
+
 
 ```{r}
 
@@ -39,6 +44,9 @@ names(clean_df)
 ```{r}
 nrow(clean_df)
 ```
+
+
+
 ```{r}
 length(names(clean_df))
 ```
@@ -75,6 +83,30 @@ length(names(clean_df))
 
 missing_columns <- sapply(clean_df, function(x) sum(is.na(x)))
 missing_columns[missing_columns >  0]
+
+```
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="goal_to_go")
+```
+
+
+```{r}
+
+plot_categorical_proportions(df=clean_df, categorical_predictor="div_game")
+
+```
+
+```{r}
+
+plot_categorical_proportions(df=clean_df, categorical_predictor="roof")
+
+```
+
+```{r}
+
+plot_categorical_proportions(df=clean_df, categorical_predictor="down")
 
 ```
 
@@ -181,36 +213,18 @@ missing_columns[missing_columns >  0]
 
 ```{r}
 
-library(AppliedPredictiveModeling)
+#library(AppliedPredictiveModeling)
 
-relief <- AppliedPredictiveModeling::permuteRelief(x=clean_df[,(names(clean_df) != "play_type")], 
-                                                   y=clean_df[,"play_type"], 
-                                                   estimator="ReliefFequalK",
-                                                   nperm=50)
+#relief <- AppliedPredictiveModeling::permuteRelief(x=clean_df[,(names(clean_df) != "play_type")], 
+#                                                   y=clean_df[,"play_type"], 
+#                                                   estimator="ReliefFequalK",
+#                                                   nperm=50)
 
 
-clean_df[,(names(clean_df) != "play_type")]
+#clean_df[,(names(clean_df) != "play_type")]
 ```
 
 
-
-
-```{r}
-
-
-```
-
-
-
-
-```{r}
-
-
-p <- ggplot(data=clean_df)+
-  geom_boxplot(mapping=aes(x=play_type, y=ydstogo))
-
-p
-```
 
 
 

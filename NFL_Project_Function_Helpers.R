@@ -177,6 +177,8 @@ generate_new_features <- function(df){
   
   df[,"vegaswp"] <- df[,"vegas_wp"]
   
+  df <- create_play_proportions_per_game(df)
+  
   return(df)
 }
 
@@ -218,14 +220,14 @@ save_dataset_to_file <- function(df, save_path, start_year, end_year, base_save_
 get_numeric_variables <- function(){
   
   numeric_variables <- c("yardline_100", "ydstogo", "fg_prob", "td_prob", "wp", "vegaswp", "cp", "temp", "wind", 
-                         "half_seconds_remaining", "game_seconds_remaining", "score_differential")
+                         "half_seconds_remaining", "game_seconds_remaining", "score_differential", "pt_run_props", "pt_pass_props")
   
   return(numeric_variables)
 }
 
 get_categorical_variables <- function(){
   
-  categorical_variables <- c("goal_to_go", "div_game", "roof", "down")
+  categorical_variables <- c("goal_to_go", "div_game", "roof", "down", "play_type")
   
   return(categorical_variables)
 }
@@ -238,7 +240,10 @@ set_datatypes <- function(df){
     
     numeric_variable_name <- numeric_vars[[numeric_index]]
     
-    df[,numeric_variable_name] <- as.numeric(df[,numeric_variable_name])
+    if(numeric_variable_name %in% names(df)){
+      df[,numeric_variable_name] <- as.numeric(df[,numeric_variable_name])  
+    }
+    
   }
   
   categorical_vars <- get_categorical_variables()
@@ -247,12 +252,102 @@ set_datatypes <- function(df){
     
     categorical_variable_name <- categorical_vars[[categorical_index]]
     
-    df[,categorical_variable_name] <- factor(df[,categorical_variable_name])
+    if(categorical_variable_name %in% names(df)){
+      df[,categorical_variable_name] <- factor(df[,categorical_variable_name])  
+    }
     
   }
   
   return(df)
 }
+
+
+create_play_proportions_per_game <- function(df){
+  
+  # Sort rows decreasing by game_seconds_remaining, within each game_id group
+  df <- df[order(df$game_id, df$game_seconds_remaining, decreasing=TRUE),]
+  
+  # List of unique game_ids
+  unique_games <- unique(df[,"game_id"])
+  
+  # Initialize the possession team run and pass proportions to -1
+  # these get filled in, inside the loops
+  df[,"pt_run_props"] <- -1
+  df[,"pt_pass_props"] <- -1
+  
+  # For each game
+  for(game_index in 1:length(unique_games)){
+    
+    # Grab the game_id
+    current_game_id <- unique_games[game_index]
+    
+    # Create a dataframe containing on the plays for this game
+    game_df <- df[df[,"game_id"] == current_game_id, c("posteam", "play_type", "home_team", "away_team")]
+    
+    # Variables to track home team plays
+    home_team <- game_df[1,"home_team"]
+    home_team_play_count <- 0
+    home_team_pass_count <- 0
+    home_team_run_count <- 0
+    
+    # Variables to track away team plays
+    away_team <- game_df[1,"away_team"]
+    away_team_play_count <- 0
+    away_team_pass_count <- 0
+    away_team_run_count <- 0
+    
+    # Vectors to track running play proportions
+    # for the current possessing team
+    pos_team_pass_proportions <- c()
+    pos_team_run_proportions <- c()
+    
+    # For each play in the game
+    for(play_index in 1:nrow(game_df)){
+      
+      # Grab the name of the team that has the ball, and the play they ran
+      possession_team <- game_df[play_index, "posteam"]
+      play_type <- game_df[play_index, "play_type"]
+      
+      # If the home team has the ball, update the home team
+      # variables to account for this play
+      if(possession_team == home_team){
+        
+        home_team_play_count <- home_team_play_count + 1
+        
+        if(play_type == "pass"){
+          home_team_pass_count <- home_team_pass_count + 1
+        }else if(play_type == "run"){
+          home_team_run_count <- home_team_run_count + 1
+        }
+        
+        # Update the running proportions with the current home team proportions
+        pos_team_pass_proportions <- append(x=pos_team_pass_proportions, values=home_team_pass_count/home_team_play_count)
+        pos_team_run_proportions <- append(x=pos_team_run_proportions, values=home_team_run_count/home_team_play_count)
+        
+        # Else if the away team has the ball
+      }else if(possession_team == away_team){
+        
+        away_team_play_count <- away_team_play_count + 1
+        
+        if(play_type == "pass"){
+          away_team_pass_count <- away_team_pass_count + 1
+        }else if(play_type == "run"){
+          away_team_run_count <- away_team_run_count + 1
+        }
+        
+        pos_team_pass_proportions <- append(x=pos_team_pass_proportions, values=away_team_pass_count/away_team_play_count)
+        pos_team_run_proportions <- append(x=pos_team_run_proportions, values=away_team_run_count/away_team_play_count)
+      }
+    }
+    
+    df[df[,"game_id"] == current_game_id, "pt_run_props"] <- pos_team_run_proportions
+    df[df[,"game_id"] == current_game_id, "pt_pass_props"] <- pos_team_pass_proportions
+    
+  }
+  
+  return(df)
+}
+
 
 # =================================================== END DATA CLEANING FUNCTIONS ===================================================
 

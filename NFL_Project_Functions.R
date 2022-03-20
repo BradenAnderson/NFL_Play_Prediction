@@ -55,7 +55,7 @@ plot_categorical_proportions <- function(df, categorical_predictor, target_colum
   # Calculate the proportion of instances where target_column=target_level, for each level of categorical_predictor.
   proportion_cis <- get_proportion_cis(df=df)
   
-  if(sorted ){
+  if(sorted){
     
     # Order the dataframe according to the proportion estimates.
     proportion_cis <- proportion_cis[order(proportion_cis[,"proportion_estimates"]),]
