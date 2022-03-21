@@ -1,8 +1,13 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "EDA_rmd"
+author: "Braden Anderson"
+date: "3/20/2022"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 
 ```{r}
@@ -21,16 +26,19 @@ clean_df <- load_clean_data()
 
 ```
 
-
 ```{r}
-sapply(clean_df, class)
-```
 
-```{r}
-# sapply(clean_df, function(x) sum(is.na(x)))
 head(clean_df)
+
 ```
 
+
+
+```{r}
+
+sapply(clean_df, class)
+
+```
 
 
 ```{r}
@@ -38,8 +46,6 @@ head(clean_df)
 names(clean_df)
 
 ```
-
-
 
 ```{r}
 nrow(clean_df)
@@ -51,9 +57,14 @@ nrow(clean_df)
 length(names(clean_df))
 ```
 
+```{r}
+missing_columns <- sapply(clean_df, function(x) sum(is.na(x)))
+missing_columns[missing_columns >  0]
+```
+
+
 
 ```{r}
-
 # CATEGORICAL RESPONSE --> play_type
 
 # NUMERIC VARIABLES
@@ -75,15 +86,6 @@ length(names(clean_df))
 # 14) div_game -->
 # 15) roof --> 
 # 16) down --> 
-
-```
-
-
-```{r}
-
-missing_columns <- sapply(clean_df, function(x) sum(is.na(x)))
-missing_columns[missing_columns >  0]
-
 ```
 
 
@@ -93,155 +95,234 @@ plot_categorical_proportions(df=clean_df, categorical_predictor="goal_to_go")
 
 
 ```{r}
-
 plot_categorical_proportions(df=clean_df, categorical_predictor="div_game")
-
 ```
 
-```{r}
 
+
+```{r}
 plot_categorical_proportions(df=clean_df, categorical_predictor="roof")
-
 ```
 
-```{r}
 
+```{r}
 plot_categorical_proportions(df=clean_df, categorical_predictor="down")
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="yardline_100", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    summary_table_loc = "upper_left", 
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="ydstogo", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="fg_prob", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="td_prob", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="wp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="vegaswp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+# All the missing values in cp that we imputed were for run plays....
+
+p <- plot_histogram_by_target_level(continuous_variable="cp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="temp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="wind", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="score_differential", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="half_seconds_remaining", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=200,
+                                    num_bins_right=200, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="game_seconds_remaining", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
 
 ```
 
 
 
 
+```{r, fig.height=5, fig.width=15}
 
-```{r}
 
-# relief_variable_setup <- function(df, features, binary_target, target_levels=c(0,1)){
-#   
-#   new_df <- df[,(names(df) %in% features)]
-#   new_df[, "binary_target"] <- df[,binary_target]
-#   new_df$binary_target <- factor(new_df$binary_target, levels=target_levels)
-#   return(new_df)
-#   
-# }
-# 
-# 
-# get_relief_score_df <- function(rs){
-#   
-#   wide_df <- spread(rs$permutations, Predictor, value)
-#   
-#   rs_names <- names(rs$standardized)
-#   
-#   for(name_index in 1:length(rs_names)){
-#     
-#     feature_name <- rs_names[name_index]
-#     
-#     std_score <- rs$standardized[feature_name][[1]]
-#     observed_score <- rs$observed[feature_name][[1]]
-#     
-#     std_name <- paste0(feature_name, "_std_score")
-#     obs_name <- paste0(feature_name, "_obs_score")
-#     
-#     wide_df[,std_name] <- std_score
-#     wide_df[,obs_name] <- observed_score
-#   }
-#   
-#   wide_df[,"estimator"] <- rs$options[[1]]
-#   wide_df[,"relief_iterations"] <- rs$options[[2]]
-#   
-#   return(wide_df)
-#   
-# }
-# 
-# # Filter on column name
-# filter_relief_df <- function(relief_df, score_type){
-#   
-#   if(score_type == "standardized"){
-#     relief_df <- relief_df[,str_subset(names(relief_df), "_std_score")]
-#   }
-#   else if(score_type == "observed"){
-#     relief_df <- relief_df[,str_subset(names(relief_df), "_obs_score")]
-#   }
-#   return(relief_df)
-# }
-# 
-# rename_relief_columns <- function(relief_df){
-#   
-#   current_names <- names(relief_df)
-#   
-#   for(name_index in 1:length(current_names)){
-#     
-#     current_name <- current_names[name_index]
-#     new_name <- str_split(current_name, pattern="_", simplify=TRUE)[[1]]
-#     
-#     # Add the new name and remove hte old one
-#     relief_df[,new_name] <- relief_df[,current_name]
-#     relief_df <- relief_df[,!(names(relief_df) %in% current_name)]
-#   }
-#   
-#   return(relief_df)
-# }
-# 
-# 
-# 
-# prepare_relief_df <- function(relief_df, score_type){
-#   
-#   relief_df <- filter_relief_df(relief_df=relief_df, 
-#                                 score_type=score_type)
-#   
-#   relief_df <- rename_relief_columns(relief_df=relief_df)
-#   
-#   relief_df <- relief_df[1,]
-#   
-#   long_df <- melt(relief_df, 
-#                   measure.vars=names(relief_df), 
-#                   variable.name="feature",
-#                   value.name="score")
-#   
-#   if(score_type == "standardized"){
-#     long_df[,"score"] <- abs(long_df[,"score"])
-#   }
-#   
-#   return(long_df)
-#   
-# }
-
+p <- plot_histogram_by_target_level(continuous_variable="pt_pass_props", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right", 
+                                    summary_table_plot="Right", 
+                                    summary_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
 
 ```
 
-
-
 ```{r}
+library(randomForest)
+library(vita)
 
-#library(AppliedPredictiveModeling)
-
-#relief <- AppliedPredictiveModeling::permuteRelief(x=clean_df[,(names(clean_df) != "play_type")], 
-#                                                   y=clean_df[,"play_type"], 
-#                                                   estimator="ReliefFequalK",
-#                                                   nperm=50)
-
-
-#clean_df[,(names(clean_df) != "play_type")]
+perm_imp <- vita::PIMP(X=clean_df[,(names(clean_df) != "play_type")], 
+                       y=clean_df[,"play_type",],
+                       rForest=randomForest::randomForest(formula=play_type~.,
+                                                          data=clean_df, 
+                                                          importance=TRUE),
+                       S=100,
+                       parallel=TRUE,
+                       ncores=5,
+                       seed=42)
 ```
 
-
-
-
-
-
 ```{r}
-
-
-```
-
-
-```{r}
-
-```
-
-
-```{r}
-
 
 
 ```

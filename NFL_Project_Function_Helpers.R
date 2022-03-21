@@ -1,6 +1,8 @@
 library(nflfastR)
 library(data.table)
 library(tidyverse)
+library(stringr)
+library(ggpmisc)
 
 # =================================================== DATA CLEANING FUNCTIONS ===================================================
 
@@ -421,6 +423,287 @@ factor_to_numeric <- function(df, col_name){
   df[,col_name] <- as.numeric(df[,col_name])
   return(df)
 }
+
+
+
+
+get_table_location <- function(table_loc){
+  
+  if(table_loc == "upper_right"){
+    x_coord <- Inf
+    y_coord <- Inf
+  }
+  else if(table_loc == "lower_right"){
+    x_coord <- Inf
+    y_coord <- -Inf
+    
+  }
+  else if(table_loc == "upper_left"){
+    x_coord <- -Inf
+    y_coord <- Inf
+    
+  }
+  else if(table_loc == "lower_left"){
+    x_coord <- -Inf
+    y_coord <- -Inf
+  }
+  
+  coords <- list(x_coordinate=x_coord, 
+                 y_coordinate=y_coord)
+  
+  return(coords)
+  
+}
+
+
+add_two_sample_test_and_combine <- function(df, left_plot, right_plot, binary_variable, continuous_variable, round_digits, test_type, exact, conf_level, 
+                                            add_means_test_table, means_test_table_loc, means_table_plot, fig_height, fig_width){
+  
+  
+  if(!add_means_test_table){
+    return(gridExtra::grid.arrange(left_plot, right_plot, nrow=1, ncol=2, heights=c(fig_height), widths=c(fig_width, fig_width)) )
+  }
+  
+  annot_df <- get_two_sample_test_annot_df(df=df, 
+                                           binary_variable=binary_variable, 
+                                           continuous_variable=continuous_variable, 
+                                           round_digits=round_digits, 
+                                           test_type=test_type, 
+                                           exact=exact, 
+                                           conf_level=conf_level)
+  
+  
+  table_coordinates <- get_table_location(table_loc=means_test_table_loc)
+  
+  if(means_table_plot == "Left"){
+    left_plot <- left_plot + 
+      annotate(geom="table", 
+               x=table_coordinates[["x_coordinate"]], 
+               y=table_coordinates[["y_coordinate"]], 
+               label=list(annot_df), 
+               table.rownames=TRUE)  
+  }else{
+    right_plot <- right_plot + 
+      annotate(geom="table", 
+               x=table_coordinates[["x_coordinate"]], 
+               y=table_coordinates[["y_coordinate"]], 
+               label=list(annot_df), 
+               table.rownames=TRUE)  
+    
+  }
+  
+  
+  combined_p <- gridExtra::grid.arrange(gridExtra::arrangeGrob(left_plot, widths=c(fig_width)), gridExtra::arrangeGrob(right_plot, widths=c(fig_width)), 
+                                        nrow=1, ncol=2, heights=c(fig_height), widths=c(fig_width, fig_width))
+  
+  return(combined_p)
+}
+
+
+get_two_sample_test_annot_df <- function(df, binary_variable, continuous_variable, round_digits, test_type, exact, conf_level){
+  
+  two_sample_test <- get_two_sample_test_results(df=df, 
+                                                 binary_variable=binary_variable, 
+                                                 continuous_variable=continuous_variable, 
+                                                 round_digits=round_digits, 
+                                                 test_type=test_type, 
+                                                 exact=exact, 
+                                                 conf_level=conf_level)
+  
+  if(test_type == "students_t" | test_type == "welches_t"){
+    
+    
+    row_names <- c("diff_means", "t_stat", "p_value", "upr_ci", "lwr_ci")
+    
+    annot_df <- data.frame(matrix(ncol = 1, nrow = length(row_names)))
+    
+    rownames(annot_df) <- row_names
+    
+    colnames(annot_df) <- two_sample_test$test_type
+    
+    annot_df[,two_sample_test$test_type] <- c(two_sample_test$est_diff_means, 
+                                              two_sample_test$test_stat, 
+                                              two_sample_test$p_value, 
+                                              two_sample_test$upper_ci, 
+                                              two_sample_test$lower_ci)
+    
+  }else if(test_type == "rank_sum"){
+    
+    row_names <- c("t_stat", "p_value", "upr_ci", "lwr_ci")
+    
+    annot_df <- data.frame(matrix(ncol = 1, nrow = length(row_names)))
+    
+    rownames(annot_df) <- row_names
+    
+    colnames(annot_df) <- two_sample_test$test_type
+    
+    annot_df[,two_sample_test$test_type] <- c(two_sample_test$test_stat, 
+                                              two_sample_test$p_value, 
+                                              two_sample_test$upper_ci, 
+                                              two_sample_test$lower_ci)
+    
+    
+  }
+  
+  return(annot_df)
+  
+}
+
+get_two_sample_test_results <- function(df, binary_variable, continuous_variable, round_digits, test_type="students_t", 
+                                        exact=FALSE, conf_level=0.95) {
+  
+  unique_values <- levels(df[,binary_variable])
+  value1 <- unique_values[1]
+  value2 <- unique_values[2]
+  
+  group1 <- df[df[binary_variable] == value1, continuous_variable]
+  group2 <- df[df[binary_variable] == value2, continuous_variable]
+  
+  if(test_type == "students_t" | test_type == "welches_t"){
+    
+    # T-test
+    return_list <- get_ttest_results(group1=group1, group2=group2, conf_level=conf_level, test_type=test_type, round_digits=round_digits)
+    
+    
+  }else if(test_type=="rank_sum"){
+    
+    return_list <- get_rank_sum_results(group1=group1, group2=group2, conf_level=conf_level, test_type=test_type, round_digits=round_digits, exact=exact)
+    
+  }
+  
+  return(return_list)
+  
+}
+
+
+get_rank_sum_results <- function(group1, group2, conf_level, exact, round_digits, test_type){
+  
+  # Ranksum test
+  test <- wilcox.test(x=group1, y=group2, conf.level=conf_level, exact=exact, conf.int=TRUE)
+  
+  p_value <- round(test$p.value, round_digits)
+  test_stat <- round(test$statistic, round_digits)
+  lower_ci <- round(test$conf.int[1], round_digits)
+  upper_ci <- round(test$conf.int[2], round_digits)
+  est <- round(test$estimate, round_digits)
+  est_diff_means <- NULL
+  
+  txt <- paste0("T-stat = ", test_stat, "\n", 
+                "P-value = ", p_value, "\n",
+                "CI: (", lower_ci, ", ", 
+                upper_ci, ")")
+  
+  return_list <- list(test_type=test_type,
+                      estimate=est, 
+                      p_value=p_value, 
+                      test_stat=test_stat, 
+                      est_diff_means=est_diff_means, 
+                      lower_ci=lower_ci, 
+                      upper_ci=upper_ci, 
+                      text=txt)
+  
+  return(return_list)
+}
+
+get_ttest_results <- function(group1, group2, conf_level, test_type, round_digits){
+  
+  if(test_type == "students_t"){
+    test <- t.test(x=group1, y=group2, var.equal=TRUE, conf.level=conf_level)  
+    
+  }else if(test_type == "welches_t"){
+    test <- t.test(x=group1, y=group2, var.equal=FALSE, conf.level=conf_level)
+  }
+  
+  p_value <- round(test$p.value, round_digits)
+  test_stat <- round(test$statistic, round_digits)
+  lower_ci <- round(test$conf.int[1], round_digits)
+  upper_ci <- round(test$conf.int[2], round_digits)
+  est <- round(test$estimate, round_digits)
+  est_diff_means <- round(est[["mean of x"]] - est[["mean of y"]], round_digits)
+  
+  
+  txt <- paste0("Est. Diff Means = ", est_diff_means, "\n", 
+                "T-stat = ", test_stat, "\n", 
+                "P-value = ", p_value, "\n",
+                "CI: (", lower_ci, ", ", 
+                upper_ci, ")")
+  
+  return_list <- list(test_type=test_type,
+                      estimate=est, 
+                      p_value=p_value, 
+                      test_stat=test_stat, 
+                      est_diff_means=est_diff_means, 
+                      lower_ci=lower_ci, 
+                      upper_ci=upper_ci, 
+                      text=txt)
+  
+  return(return_list)
+}
+
+calculate_summary_stats <- function(df, column_name){
+  
+  summary_vector <- c(min(df[,column_name]), 
+                      quantile(df[,column_name], probs=c(0.25)), 
+                      mean(df[,column_name]), 
+                      median(df[,column_name]), 
+                      quantile(df[,column_name], probs=c(0.75)), 
+                      max=max(df[,column_name]))
+  
+  
+  summary_stat_names <- c("min", "mean", "median", "max")
+  
+  summary_df <- data.frame(summary_stats=summary_vector)
+  rownames(summary_df) <- summary_stat_names
+  
+  return(summary_df)
+  
+}
+
+
+
+add_summary_stats_table <- function(p, df1, lvl1, df2, lvl2, continuous_variable, table_loc, round_digits){
+  
+  #annot_table <- calculate_summary_stats(df=df, column_name=x_var)
+  
+  
+  summary_stat_names <- c(paste0(lvl1, "_min"), 
+                          paste0(lvl2, "_min"),
+                          paste0(lvl1, "_mean"), 
+                          paste0(lvl2, "_mean"),
+                          paste0(lvl1, "_median"), 
+                          paste0(lvl2, "_median"),
+                          paste0(lvl1, "_max"), 
+                          paste0(lvl2, "_max"))
+  
+  summary_vector <- c(min(df1[,continuous_variable]), 
+                      min(df2[,continuous_variable]),
+                      mean(df1[,continuous_variable]), 
+                      mean(df2[,continuous_variable]),
+                      median(df1[,continuous_variable]), 
+                      median(df2[,continuous_variable]),
+                      max=max(df1[,continuous_variable]), 
+                      max=max(df2[,continuous_variable]))
+  
+  summary_vector <- round(summary_vector, round_digits)
+  
+  summary_df <- data.frame(summary_stats=summary_vector)
+  rownames(summary_df) <- summary_stat_names
+  
+  table_coordinates <- get_table_location(table_loc=table_loc)
+  
+  
+  p <- p + 
+    annotate(geom="table", 
+             x=table_coordinates[["x_coordinate"]], 
+             y=table_coordinates[["y_coordinate"]], 
+             label=list(summary_df), 
+             table.rownames=TRUE)
+  
+  return(p)
+  
+}
+
+
 
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================

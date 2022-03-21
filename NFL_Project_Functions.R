@@ -96,5 +96,137 @@ plot_categorical_proportions <- function(df, categorical_predictor, target_colum
 }
 
 
+plot_histogram <- function(df, continuous_variable, fill_color="#bc5090",  
+                           outline_color="#003f5c", num_bins=NULL, binwidth=NULL,
+                           title=NULL, table_loc="upper_right", add_table=FALSE){
+  
+  
+  df[,"continuous_var"] <- df[,continuous_variable]
+  
+  
+  if(is.null(title)){
+    plot_title <-  paste0("Distribution of ", stringr::str_to_title(continuous_variable))   
+  }
+  else{
+    plot_title <- title
+  }
+  
+  
+  p <- ggplot(data=df, mapping=aes(x=continuous_var)) +
+    geom_histogram(binwidth=binwidth, bins=num_bins, fill=fill_color, color=outline_color) + 
+    ggtitle(plot_title) +
+    ylab(paste0("Distribution of ", stringr::str_to_title(continuous_variable))) +
+    xlab(stringr::str_to_title(continuous_variable))
+  
+  
+  if(add_table){
+    p <- add_table_to_plot(p=p, df=df, x_var=continuous_variable, table_loc=table_loc)   
+  }
+  
+  
+  return(p)
+}
+
+
+# Function for plotting side by side histograms of some continuous feature, for each level of the binary target.
+# Function includes parameters to run a two-sample test (t-test or rank sum) comparing the mean value of the
+# continuous feature for each level of the binary target.
+plot_histogram_by_target_level <- function(df, continuous_variable, binary_target="play_type", fill_color_left="#bc5090", outline_color_left="#003f5c", 
+                                           fill_color_right="#bc5090", outline_color_right="#003f5c", num_bins_left=NULL, binwidth_left=NULL, 
+                                           num_bins_right=NULL, binwidth_right=NULL, title_left=NULL, title_right=NULL, summary_table_loc="upper_right",
+                                           summary_table_plot="Right", round_digits=5, exact=FALSE, conf_level=0.95,test_type="students_t", add_means_test_table=TRUE, 
+                                           means_table_plot="Left", means_test_table_loc="upper_left", fig_width=10, fig_height=5){
+  
+  
+  if(length(levels(df[,binary_target])) != 2){
+    return(print(paste0("This function can only be used when ", binary_target, " is a factor with two levels.")))
+  }
+  
+  lvls <- levels(df[, binary_target])
+  
+  if(is.null(title_left)){
+    title_left <- paste0("Distribution of ", stringr::str_to_title(continuous_variable), " for ", binary_target, "=", lvls[1])  
+  }
+  
+  if(is.null(title_right)){
+    title_right <- paste0("Distribution of ", stringr::str_to_title(continuous_variable), " for ", binary_target, "=", lvls[2])  
+  }
+  
+  lvl_left <- lvls[1]
+  df_left <- df[df[,binary_target]==lvl_left,]
+  
+  lvl_right <- lvls[2]
+  df_right <- df[df[,binary_target]==lvl_right,]
+  
+  # Plot for the first level
+  left_plot <- plot_histogram(df=df_left, 
+                              continuous_variable=continuous_variable, 
+                              fill_color=fill_color_left, 
+                              outline_color=outline_color_left, 
+                              num_bins=num_bins_left,
+                              binwidth=binwidth_left,
+                              table_loc=NULL,
+                              add_table=FALSE, 
+                              title=title_left)
+  
+  
+  
+  # Plot for the second level
+  right_plot <- plot_histogram(df=df_right, 
+                               continuous_variable=continuous_variable, 
+                               fill_color=fill_color_right, 
+                               outline_color=outline_color_right, 
+                               num_bins=num_bins_right,
+                               binwidth=binwidth_right,
+                               table_loc=NULL,
+                               add_table=FALSE, 
+                               title=title_right)
+  
+  if(summary_table_plot != FALSE){
+    
+    if(summary_table_plot == "Right"){
+      
+      right_plot <- add_summary_stats_table(p=right_plot, 
+                                            df1=df_left, 
+                                            lvl1=lvl_left, 
+                                            df2=df_right, 
+                                            lvl2=lvl_right, 
+                                            continuous_variable=continuous_variable, 
+                                            table_loc=summary_table_loc, 
+                                            round_digits=round_digits)  
+    }else{
+      
+      left_plot <- add_summary_stats_table(p=left_plot, 
+                                            df1=df_left, 
+                                            lvl1=lvl_left, 
+                                            df2=df_right, 
+                                            lvl2=lvl_right, 
+                                            continuous_variable=continuous_variable, 
+                                            table_loc=summary_table_loc, 
+                                           round_digits=round_digits)  
+    }
+  }
+  
+  
+  
+  p <- add_two_sample_test_and_combine(df=df, 
+                                       left_plot=left_plot, 
+                                       right_plot=right_plot, 
+                                       binary_variable=binary_target, 
+                                       continuous_variable=continuous_variable, 
+                                       round_digits=round_digits, 
+                                       test_type=test_type, 
+                                       exact=exact, 
+                                       conf_level=conf_level,
+                                       add_means_test_table=add_means_test_table,
+                                       means_test_table_loc=means_test_table_loc, 
+                                       means_table_plot=means_table_plot,
+                                       fig_height=fig_height,
+                                       fig_width=fig_width)
+  
+  return(p)
+  
+}
+
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
