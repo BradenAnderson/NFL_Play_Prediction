@@ -1,0 +1,229 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Setup
+Just so we're on the same page, we should have 127654 rows and 16 columns after data cleaning.
+```{r}
+dim(clean_df)
+
+# set these variables as factor
+cat_df <- c('play_type', 'pos_to', 'goal_to_go', 'div_game', 'down', 'roof') 
+clean_df[cat_df] <- lapply(clean_df[cat_df], as.factor)
+
+# make sure everything looks good
+str(clean_df)
+```
+
+# EDA: Categorical
+```{r}
+# play_type
+table(clean_df$play_type) # count of each play_type
+
+clean_df %>% ggplot(aes(x=play_type, fill=play_type)) + geom_bar(position = 'dodge') + theme_minimal()
+
+# down. possible correlation with score_differential esp on 3rd down?
+table(clean_df$down) # count of each level
+xtabs(~play_type+down, data=clean_df) # count of level and play_type
+
+clean_df %>% ggplot(aes(x=down, fill=play_type)) + 
+          geom_bar(position = 'dodge') + theme_minimal() # count
+clean_df %>% ggplot(aes(x=down, fill=play_type)) + 
+          geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
+          theme_minimal() # porportion (pass and run of down == 1 will sum to 1)
+
+# pos_to
+table(clean_df$pos_to) # count of time outs by possession team
+xtabs(~play_type+pos_to, data=clean_df) # count of timeouts per play_type
+
+clean_df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
+          geom_bar(position = 'dodge') + 
+          theme_minimal() # count
+clean_df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
+          geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
+          theme_minimal() # proportion (pass and run of pos_to == 0 will sum to 1)
+
+# goal_to_go
+table(clean_df$goal_to_go)
+xtabs(~play_type+goal_to_go, data=clean_df)
+
+clean_df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
+            geom_bar(position = 'dodge') + 
+            theme_minimal() # count
+clean_df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
+            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
+            theme_minimal() # proportion (pass + run of goal_to_go == 0 will sum to 1)
+
+# roof
+table(clean_df$roof)
+xtabs(~play_type+roof, data=clean_df)
+
+clean_df %>% ggplot(aes(x=roof, fill=play_type)) + 
+            geom_bar(position = 'dodge') + theme_minimal() # count
+clean_df %>% ggplot(aes(x=roof, fill=play_type)) + 
+            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
+            theme_minimal() # prop (pass + run of roof == closed will sum to 1)
+
+# div_game
+table(clean_df$div_game)
+xtabs(~play_type+div_game, data=clean_df)
+
+clean_df %>% ggplot(aes(x=div_game, fill=play_type)) + 
+            geom_bar(position = 'dodge') + 
+            theme_minimal() # count
+clean_df %>% ggplot(aes(x=div_game, fill=play_type)) + 
+            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
+            theme_minimal() # proportion (pass + run of div_game == 0 will sum to 1)
+```
+
+# EDA: Numerical
+```{r}
+# score_differential
+clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
+        geom_histogram(aes(y=..count..), alpha=.5) + 
+        theme_minimal() # histogram
+clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
+          geom_density(aes(y=..count..), alpha=.5) + 
+          theme_minimal() # density count
+clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
+        geom_density(alpha=.5) + 
+        theme_minimal() # by density
+clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
+        geom_boxplot(alpha=.5) + 
+        theme_minimal() # boxplot
+
+## yardline_100
+clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal() # histogram
+clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal() # density
+clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal() # boxplot
+
+## ydstogo
+clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal() # histogram
+clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal() # density
+clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal() # boxplot
+
+## fg_prob
+clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## td_prob. good predictor
+clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## wp
+clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## temp
+clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## wind
+clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## half_seconds_remaining
+clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+
+## game_seconds_remaining
+clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
+          geom_boxplot(alpha=.5) + 
+          theme_minimal()
+```
+
+# Split data
+```{r}
+library(splitTools)
+index <- partition(clean_df$play_type, p = c(train = 0.8, test = 0.1, valid = 0.1), seed = 42) 
+train <- clean_df[index$train, ]
+test <- clean_df[index$test, ]
+valid <- clean_df[index$valid, ]
+```
+
+# Logistic Regression: Simple
+
+Model with full data:
+```{r}
+simple.mod.full <- glm(play_type~., family = binomial, data=clean_df)
+summary(simple.mod.full)
+pred <- predict(simple.mod.full, clean_df, type = 'response')
+
+```
+
+# Logistic Regression: Complex
+```{r}
+
+```
+
+# PCA+LDA/QDA
+```{r}
+
+```
+
+# Nonparametric 
+```{r}
+
+```
+
