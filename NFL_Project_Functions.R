@@ -230,3 +230,479 @@ plot_histogram_by_target_level <- function(df, continuous_variable, binary_targe
 
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
+
+
+
+# =================================================== MODELING FUNCTIONS ===================================================
+
+get_dataset_splits <- function(df, seed=42, train_pct=0.8, test_pct=0.1, valid_pct=0.1){
+  
+  index <- splitTools::partition(df$play_type, p=c(train=train_pct, test=test_pct, valid=valid_pct), seed=seed)
+  
+  train <- df[index$train,]
+  test <- df[index$test,]
+  valid <- df[index$valid,]
+  
+  cross_validation <- rbind(train, valid)
+  
+  return(list(cross_validation=cross_validation,
+              train=train,
+              test=test,
+              valid=valid))
+  
+}
+
+
+get_categorical_feature_names <- function(df, target_column="play_type"){
+  
+  feature_classes <- sapply(df[,names(df) != target_column], class)
+  
+  categorical_feature_names <- names(feature_classes[feature_classes == "factor"])
+  
+  return(categorical_feature_names)
+  
+}
+
+
+build_features_matrix_and_label <- function(df, target_column="play_type", conversion_rules=NULL){
+  
+  # Dataframe with features converted to a format that lightGBM accepts.
+  lgb_prepared <- lightgbm::lgb.convert_with_rules(data=df)
+  
+  # The features to train the LightGBM model, in dataframe format
+  features_df <- lgb_prepared$data[,!(names(lgb_prepared$data) %in% target_column)]
+  
+  # The label column for the classification task. 
+  # Since the label has two classes, the lgb.convert_with_rules will have converted this column
+  # to contain the values 1 and 2. However, for binary classification, lightGBM needs the target
+  # to be zeros and ones. Therefore, we subtract 1 from this column before creating the lightGBM data set.
+  #
+  label = lgb_prepared$data[,target_column] - 1L # Subtract 1 to get the labels to be 0 and 1 instead of 1 and 2.
+  
+  # Convert the features dataframe to a matrix.
+  features_matrix <- as.matrix(features_df)
+  
+  return(list(features_matrix=features_matrix,
+              label=label,
+              rules=lgb_prepared$rules))
+  
+}
+
+
+create_lgb_dataset <- function(df, target_column="play_type", conversion_rules=NULL){
+  
+  
+  prepared_data <- build_features_matrix_and_label(df=df, target_column=target_column, conversion_rules=conversion_rules)
+  
+  # Create the LightGBM data set.
+  lgb_dataset <- lightgbm::lgb.Dataset(data=prepared_data$features_matrix, 
+                                       label=prepared_data$label,
+                                       categorical_feature=get_categorical_feature_names(df=df))
+  
+  return(list(ds=lgb_dataset,
+              rules=prepared_data$rules))
+}
+
+
+### LightGBM Cross validation and gridsearch functions 
+
+create_lgb_cv_datasets <- function(df, num_folds, target_column="play_type", cv_type="stratified"){
+  
+  folds <- splitTools::create_folds(y=df[,target_column], 
+                                    k=num_folds, 
+                                    type=cv_type, 
+                                    use_names=FALSE)
+  
+  # List where the keys will be of the format "fold<foldnum>"
+  # and the values will be all the required data to conducting training
+  # and testing activities for that fold
+  dataset_folds <- list()
+  
+  dataset_conversion_rules <- NULL
+  
+  for(fold_index in 1:length(folds)){
+    
+    # Rows to train on for this fold
+    train_rows <- folds[[fold_index]]
+    
+    # Training and test dataframes
+    train_df <- df[train_rows,]
+    test_df <- df[-train_rows,]
+    
+    
+    lgb_training_data <- create_lgb_dataset(df=train_df, 
+                                            target_column=target_column,
+                                            conversion_rules=dataset_conversion_rules)
+    
+    # On the first iteration of the loop, save the data set conversion rules. This allows us to ensure that
+    # the data sets for all other folds will be created using the same rules. 
+    if(fold_index == 1){
+      dataset_conversion_rules <- lgb_training_data$rules
+    }
+    
+    # A lightGBM dataset containing the training data and training labels
+    train_lgb_dataset <- lgb_training_data$ds
+    
+    # Get the training data and training labels in matrix format.
+    # This is useful for getting prediction metrics for the training set.
+    train_data_matrix <- build_features_matrix_and_label(df=train_df, 
+                                                         target_column=target_column,
+                                                         conversion_rules=dataset_conversion_rules)
+    
+    # The features and label for the training set, in matrix format 
+    train_matrix <- train_data_matrix$features_matrix
+    train_labels <- train_data_matrix$label
+    
+    # Test data in matrix format, used for calculating test metrics
+    test_data_matrix <- build_features_matrix_and_label(df=test_df, 
+                                                        target_column=target_column,
+                                                        conversion_rules=dataset_conversion_rules)
+    
+    # The features and label for the TEST set, in matrix format 
+    test_matrix <- test_data_matrix$features_matrix
+    test_labels <- test_data_matrix$label
+    
+    # Save all of the information required to perform training and testing on this fold.
+    fold_data <- list(lgb_train_ds=train_lgb_dataset,
+                      train_features_matrix=train_matrix,
+                      train_labels=train_labels,
+                      test_features_matrix=test_matrix,
+                      test_labels=test_labels)
+    
+    # Key for indexing into the list containing all required dataset information for each fold.
+    fold_key <- paste0("fold", fold_index)
+    
+    # Update the list that contains data for each fold.
+    dataset_folds[[fold_key]] <- fold_data
+  }
+  
+  return(dataset_folds)
+  
+}
+
+
+get_cv_metric_names <- function(){
+  return(c("accuracy", "auc", "precision", "recall", "logloss"))
+}
+
+
+calculate_cv_fold_metrics <- function(model, fold_data, fold_number){
+  
+  
+  # Predicted class probabilities on the training set
+  predicted_probabilities_train <- predict(object=model, data=fold_data$train_features_matrix)
+  
+  # Actual predicted classes on the training set
+  predicted_classes_train <- as.numeric(predicted_probabilities_train > 0.5)
+  
+  # Calculate the training set metrics for this fold
+  fold_metrics_train <- calculate_fold_metrics(predicted_classes=predicted_classes_train,
+                                               predicted_probabilities=predicted_probabilities_train,
+                                               true_classes=fold_data$train_labels,
+                                               metric_type="train",
+                                               fold_number=fold_number)
+  
+  
+  # Predicted class probabilities on the test set
+  predicted_probabilities_test <- predict(object=model, data=fold_data$test_features_matrix)
+  
+  # Actual predicted classes on the test set
+  predicted_classes_test <- as.numeric(predicted_probabilities_test > 0.5)
+  
+  
+  # Calculate the test set metrics for this fold
+  fold_metrics_test <- calculate_fold_metrics(predicted_classes=predicted_classes_test,
+                                              predicted_probabilities=predicted_probabilities_test,
+                                              true_classes=fold_data$test_labels,
+                                              metric_type="test",
+                                              fold_number=fold_number)
+  
+  
+  all_fold_metrics <- cbind(fold_metrics_test, fold_metrics_train)
+  
+  return(all_fold_metrics)
+  
+}
+
+calculate_fold_metrics <- function(predicted_classes, predicted_probabilities, true_classes, metric_type, fold_number){
+  
+  
+  # Metric names that indicate what metric is being calculate, the fold number it corresponds to, and 
+  # the metric type (whether it is a training or test metric).
+  metric_names <- get_cv_metric_names()
+  full_metric_names <- paste0(metric_names, "_fold", fold_number, "_", metric_type)
+  
+  
+  accuracy <- Metrics::accuracy(actual=true_classes,
+                                predicted=predicted_classes)
+  
+  auc <- Metrics::auc(actual=true_classes,
+                      predicted=predicted_probabilities)
+  
+  precision <- Metrics::precision(actual=true_classes,
+                                  predicted=predicted_classes)
+  
+  
+  recall <- Metrics::recall(actual=true_classes,
+                            predicted=predicted_classes)  
+  
+  
+  average_logloss <- Metrics::logLoss(actual=true_classes,
+                                      predicted=predicted_probabilities)
+  
+  
+  # It is important that the columns are inserted into this dataframe in the same
+  # order that the metric names appear in full_metric_names
+  metrics_row <- data.frame(acc=accuracy,
+                            auc=auc,
+                            prec=precision,
+                            recall=recall,
+                            ll=average_logloss)
+  
+  # Set the column names
+  colnames(metrics_row) <- full_metric_names
+  
+  return(metrics_row)
+}
+
+cross_validate_lgbm <- function(cv_datasets, train_params){
+  
+  for(fold_number in 1:length(cv_datasets)){
+    
+    # Key for this fold, used to index into the cv_datasets list
+    fold_key <- paste0("fold", fold_number)
+    
+    # Grab all the information required to train and test the model using 
+    # the data for this cross validation fold. 
+    fold_data <- cv_datasets[[fold_key]]
+    
+    # Train the model using the lightGBM training dataset for this fold.
+    model <- lightgbm::lightgbm(data=fold_data$lgb_train_ds, 
+                                params=train_params)
+    
+    
+    # Calculate the training and test metrics for this fold  
+    fold_metrics <- calculate_cv_fold_metrics(model=model, 
+                                              fold_data=fold_data, 
+                                              fold_number=fold_number)
+    
+    
+    if(fold_number == 1){
+      full_cv_metrics_row <- fold_metrics
+    }else{
+      full_cv_metrics_row <- cbind(full_cv_metrics_row, fold_metrics)
+    }
+    
+  }
+  
+  complete_metrics_row <- add_avg_cv_value_per_metric(metrics_row=full_cv_metrics_row)
+  
+  return(complete_metrics_row)
+}
+
+add_avg_cv_value_per_metric <- function(metrics_row){
+  
+  # Vector of all metric names calculated for each fold and each set (train, test)
+  metric_names <- get_cv_metric_names()
+  
+  # Name of all columns
+  all_column_names <- names(metrics_row)
+  
+  for(metric_index in 1:length(metric_names)){
+    
+    # Get the name of this particular metric
+    metric_name <- metric_names[metric_index]
+    
+    # Get the name of all columns that pertain to this metric
+    metric_column_names <- grep(pattern=paste0("^", metric_name), x=all_column_names, value=TRUE)
+    
+    # All columns pertaining to this metric and the training set
+    train_column_names <- grep(pattern="train", x=metric_column_names, value=TRUE)
+    
+    # Average value for this metric on the training set
+    avg_train_metric <- rowMeans(metrics_row[,train_column_names])
+    
+    # New column name for the average value of this metric on the training set
+    avg_metric_new_col_name_train <- paste0("avg_", metric_name, "_train")
+    
+    # All columns pertaining to this metric and the training set
+    test_column_names <- grep(pattern="test", x=metric_column_names, value=TRUE)
+    
+    # Average value for this metric on the test set (across all the cv folds).
+    avg_test_metric <- rowMeans(metrics_row[,test_column_names])
+    
+    # New column name for the average value of this metric on the test set
+    avg_metric_new_col_name_test <- paste0("avg_", metric_name, "_test")
+    
+    # Add columns for the average value of this metric on the train and test set
+    metrics_row[,avg_metric_new_col_name_train] <- avg_train_metric
+    metrics_row[,avg_metric_new_col_name_test] <- avg_test_metric
+    
+  }
+  
+  return(metrics_row)
+}
+
+get_lgbm_training_parameters <- function(objective, metric, boosting_type, learning_rate, num_boosting_rounds, 
+                                         num_leaves,num_threads, seed, feature_fraction, min_data_in_leaf, 
+                                         extra_trees, force_row_wise, max_depth){
+  
+  train_params <- list(objective=objective,
+                       metric=metric,
+                       boosting=boosting_type,
+                       force_row_wise=force_row_wise,
+                       learning_rate=learning_rate,
+                       num_rounds=num_boosting_rounds, 
+                       num_leaves=num_leaves,
+                       feature_fraction=feature_fraction,
+                       max_depth=max_depth,
+                       num_threads=num_threads,
+                       min_data_in_leaf=min_data_in_leaf,
+                       extra_trees=extra_trees,
+                       seed=seed)
+  
+  return(train_params)
+}
+
+get_default_param_grid <- function(){
+  
+  default_param_grid <- list(boosting=c("gbdt", "dart"),
+                             learning_rate=c(0.1),
+                             num_rounds=c(100L), 
+                             num_leaves=c(31),
+                             min_data_in_leaf=c(20),
+                             feature_fraction=c(1.0),
+                             max_depth=c(-1),
+                             extra_trees=c(FALSE, TRUE))
+  return(default_param_grid)
+}
+
+add_lgbm_params_to_row <- function(metrics_row, boosting, learning_rate, num_rounds, num_leaves, min_data_in_leaf, feature_fraction, max_depth, extra_trees){
+  
+  param_row <- data.frame(boosting=boosting, 
+                          learning_rate=learning_rate, 
+                          num_rounds=num_rounds, 
+                          num_leaves=num_leaves, 
+                          min_data_in_leaf=min_data_in_leaf,
+                          feature_fraction=feature_fraction,
+                          max_depth=max_depth,
+                          extra_trees=extra_trees)
+  
+  combined_row <- cbind(param_row, metrics_row)
+  
+  return(combined_row)
+}
+
+clean_gs_results_df <- function(df, sort_by="avg_accuracy_test"){
+  
+  cols_to_remove <- grep(pattern="_fold", x=names(df), value=TRUE)
+  
+  clean_gs_df <- df[,!(names(df) %in% cols_to_remove)]
+  
+  clean_gs_df <- clean_gs_df[order(clean_gs_df[,sort_by], decreasing = TRUE),]
+  
+  return(clean_gs_df)
+}
+
+
+gridsearch_lightgbm <- function(df, param_grid, num_folds=5, training_objective="binary", training_metric="binary_error", num_threads=5, 
+                                seed=42, force_row_wise=TRUE, save_every=2, base_save_name="./lgbm_gridsearch"){
+  
+  # All datasets for k-fold cross validation on each set of parameters
+  all_ds <- create_lgb_cv_datasets(df=df, num_folds=num_folds)
+  
+  iterations_counter <- 1
+
+  for(extra_trees_index in 1:length(param_grid[["extra_trees"]])){
+    for(boosting_index in 1:length(param_grid[["boosting"]])){
+      for(num_rounds_index in 1:length(param_grid[["num_rounds"]])){
+        for(num_leaves_index in 1:length(param_grid[["num_leaves"]])){
+          for(min_data_in_leaf_index in 1:length(param_grid[["min_data_in_leaf"]])){
+            for(max_depth_index in 1:length(param_grid[["max_depth"]])){
+              for(feature_fraction_index in 1:length(param_grid[["feature_fraction"]])){
+                for(learning_rate_index in 1:length(param_grid[["learning_rate"]])){
+                  
+                  # Unpack the hyper-parameters to use on this iteration
+                  boosting_type <- param_grid[["boosting"]][boosting_index]
+                  learning_rate <- param_grid[["learning_rate"]][learning_rate_index]
+                  num_rounds <- param_grid[["num_rounds"]][num_rounds_index]
+                  num_leaves <- param_grid[["num_leaves"]][num_leaves_index]
+                  feature_fraction <- param_grid[["feature_fraction"]][feature_fraction_index]
+                  min_data_in_leaf <- param_grid[["min_data_in_leaf"]][min_data_in_leaf_index]
+                  extra_trees <- param_grid[["extra_trees"]][extra_trees_index]
+                  max_depth <- param_grid[["max_depth"]][max_depth_index]
+                  
+                  # Grab the current set of parameters
+                  training_parameters <- get_lgbm_training_parameters(objective=training_objective,
+                                                                      metric=training_metric,
+                                                                      num_threads=num_threads,
+                                                                      seed=seed,
+                                                                      force_row_wise=force_row_wise,
+                                                                      boosting_type=boosting_type,
+                                                                      learning_rate=learning_rate,
+                                                                      num_boosting_rounds=num_rounds,
+                                                                      num_leaves=num_leaves,
+                                                                      feature_fraction=feature_fraction,
+                                                                      min_data_in_leaf=min_data_in_leaf,
+                                                                      extra_trees=extra_trees,
+                                                                      max_depth=max_depth)
+                  
+                  # Perform cross validation with this set of parameters
+                  cv_metrics_row <- cross_validate_lgbm(cv_datasets=all_ds,
+                                                        train_params=training_parameters)
+                  
+                  # Add the hyper-params used to the information about model performance
+                  # on each cv fold
+                  model_row <- add_lgbm_params_to_row(metrics_row=cv_metrics_row, 
+                                                      boosting=boosting_type, 
+                                                      learning_rate=learning_rate, 
+                                                      num_rounds=num_rounds, 
+                                                      num_leaves=num_leaves, 
+                                                      min_data_in_leaf=min_data_in_leaf, 
+                                                      feature_fraction=feature_fraction, 
+                                                      max_depth=max_depth, 
+                                                      extra_trees=extra_trees)
+                  
+                  # Update the current grid search results dataframe
+                  if(iterations_counter == 1){
+                    all_model_rows <- model_row
+                  }else{
+                    all_model_rows <- rbind(all_model_rows, model_row)
+                  }
+                  
+                  # Save the current grid search results
+                  if(iterations_counter %% save_every == 0){
+                    save_path <- paste0(base_save_name, "_iter_", iterations_counter, ".csv")
+                    write.csv(x=all_model_rows, file=save_path, row.names=FALSE)
+                  }
+                  
+                  # Increment total iterations performed, keep this at the end
+                  iterations_counter <-  iterations_counter + 1
+                  
+                }
+              }
+            }
+          }
+        }
+      } 
+    }
+  }
+  
+  
+  final_model_df_clean <- clean_gs_results_df(df=all_model_rows,
+                                              sort_by="avg_accuracy_test")
+  
+  save_path <- paste0("./FINAL_sorted_gridsearch", "_iter_", iterations_counter, ".csv")
+  write.csv(x=final_model_df_clean, file=save_path, row.names=FALSE)
+  
+  # Return here
+  return(final_model_df_clean)
+}
+# =================================================== END MODELING FUNCTIONS ===================================================
+
+
+
+
+
+
+

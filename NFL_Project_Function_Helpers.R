@@ -3,6 +3,7 @@ library(data.table)
 library(tidyverse)
 library(stringr)
 library(ggpmisc)
+library(splitTools)
 
 # =================================================== DATA CLEANING FUNCTIONS ===================================================
 
@@ -49,7 +50,8 @@ get_additional_columns_to_remove <- function(){
                    'order_sequence', 'away_score', 'home_score', 'location', 'surface', 'result', 
                    'total', 'spread_line', 'success', 'home_coach', 'away_coach', 'rusher', 
                    'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 'out_of_bounds', 
-                   'play', 'pass_oe', 'cpoe', 'wpa', 'quarter_seconds_remaining')
+                   'play', 'pass_oe', 'cpoe', 'wpa', 'quarter_seconds_remaining', 'cp', 'wpa', 
+                   'quarter_seconds_remaining', 'vegaswp')
   
   return(remove_misc)
 }
@@ -199,6 +201,8 @@ fillin_missing_values <- function(df){
   mean_cp <- mean(df[!is.na(df[,"cp"]),"cp"])
   df[is.na(df[,"cp"]),"cp"] <- mean_cp
   
+  df[,"pos_to"] <- df[,"posteam_timeouts_remaining"]
+  
   return(df)
 }
 
@@ -221,7 +225,7 @@ save_dataset_to_file <- function(df, save_path, start_year, end_year, base_save_
 
 get_numeric_variables <- function(){
   
-  numeric_variables <- c("yardline_100", "ydstogo", "fg_prob", "td_prob", "wp", "vegaswp", "cp", "temp", "wind", 
+  numeric_variables <- c("yardline_100", "ydstogo", "fg_prob", "td_prob", "wp", "vegaswp", "temp", "wind", "pos_to",
                          "half_seconds_remaining", "game_seconds_remaining", "score_differential", "pt_run_props", "pt_pass_props")
   
   return(numeric_variables)
