@@ -4,6 +4,8 @@ library(tidyverse)
 library(stringr)
 library(ggpmisc)
 library(splitTools)
+library(lightgbm)
+library(InformationValue)
 
 # =================================================== DATA CLEANING FUNCTIONS ===================================================
 
@@ -51,7 +53,7 @@ get_additional_columns_to_remove <- function(){
                    'total', 'spread_line', 'success', 'home_coach', 'away_coach', 'rusher', 
                    'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 'out_of_bounds', 
                    'play', 'pass_oe', 'cpoe', 'wpa', 'quarter_seconds_remaining', 'cp', 'wpa', 
-                   'quarter_seconds_remaining', 'vegaswp')
+                   'quarter_seconds_remaining', 'vegaswp', 'half_seconds_remaining', 'pt_run_props')
   
   return(remove_misc)
 }
@@ -233,7 +235,7 @@ get_numeric_variables <- function(){
 
 get_categorical_variables <- function(){
   
-  categorical_variables <- c("goal_to_go", "div_game", "roof", "down", "play_type")
+  categorical_variables <- c("goal_to_go", "div_game", "roof", "down", "play_type", 'pos_to')
   
   return(categorical_variables)
 }
@@ -663,8 +665,6 @@ calculate_summary_stats <- function(df, column_name){
   
 }
 
-
-
 add_summary_stats_table <- function(p, df1, lvl1, df2, lvl2, continuous_variable, table_loc, round_digits){
   
   #annot_table <- calculate_summary_stats(df=df, column_name=x_var)
@@ -707,8 +707,25 @@ add_summary_stats_table <- function(p, df1, lvl1, df2, lvl2, continuous_variable
   
 }
 
-
-
+calculate_test_set_performance <- function(model, test_df, label="play_type", classification_threshold=0.5){
+  
+  test_data_prepared <- build_features_matrix_and_label(df=test_df)
+  
+  # Predicted class probabilities on the test set
+  predicted_probabilities <- predict(object=model, 
+                                     data=test_data_prepared$features_matrix)
+  
+  # Convert the probability predictions into class predictions
+  predicted_classes <- as.numeric(predicted_probabilities > classification_threshold)
+  
+  test_metrics <- calculate_fold_metrics(predicted_classes=predicted_classes,
+                                         predicted_probabilities=predicted_probabilities,
+                                         true_classes=test_data_prepared$label,
+                                         metric_type="test",
+                                         fold_number="N/A")
+  
+  return(test_metrics)
+}
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
 
@@ -718,6 +735,14 @@ add_summary_stats_table <- function(p, df1, lvl1, df2, lvl2, continuous_variable
 
 
 
+
+# =================================================== TROUBLESHOOTING FUNCTIONS ===================================================
+
+
+# Some of the features in the data dictionary had unclear meanings. This function was useful
+# to investigate and understand what some particular features were doing.
+#
+# See meeting minute slides for discussion on "past tense" vs "present tense" features. 
 check_first_down_features <- function(df, play_type_to_check="run"){
   
   if(play_type_to_check == "run"){

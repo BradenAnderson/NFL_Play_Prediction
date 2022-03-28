@@ -2,11 +2,10 @@
 title: "LightGBM"
 author: "Braden Anderson"
 date: "3/22/2022"
-output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(echo = TRUE)
 
 #devtools::install_github("Microsoft/LightGBM", subdir = "R-package")
 #install.packages("lightgbm", repos = "https://cran.r-project.org")
@@ -23,6 +22,7 @@ library(lightgbm)
 
 clean_df <- load_clean_data()
 
+# Make sure the custom features that aren't being used for objective 2 get filtered out.
 clean_df <- clean_df[,!(names(clean_df) %in% c("pt_run_props", "pt_pass_props"))]
 
 getwd()
@@ -37,62 +37,245 @@ dim(clean_df)
 
 ```{r}
 
+# Split data into training, validation, and test
+# Train --> 80%
+# Validation --> 10%
+# Final Test --> 10%
+# Cross validation set = Train + Validation --> 90%
 datasets <- get_dataset_splits(df=clean_df)
 
+# Grab the data sets returned from get_dataset_splits function
 cv_df <- datasets$cross_validation
+train_df <- datasets$train
+test_df <- datasets$test
+val_df <- datasets$valid
+
 
 dim(cv_df)
+dim(train_df)
+dim(val_df)
+dim(test_df)
+```
+
+
+# Initial GridSearch
+```{r}
+
+# Default param grid, only used for function testing / development purposes.
+# parameter_grid <- get_default_param_grid()
+
+# GRIDSEARCH #1 (pos_to was numeric not categorical, and half_seconds_remaining was included)
+#
+# parameter_grid <- list(boosting=c("gbdt", "dart"),
+#                        learning_rate=c(0.003, 0.01, 0.1, 0.2),
+#                        num_rounds=c(100L, 1000L, 1500L), 
+#                        num_leaves=c(20, 31, 50),
+#                        min_data_in_leaf=c(10, 20, 30),
+#                        feature_fraction=c(0.75, 1.0),
+#                        max_depth=c(-1, 10),
+#                        extra_trees=c(FALSE))
+
+
+# Commenting out so we don't accidently rerun. Final result has been save to a .csv
+# gs_results <- gridsearch_lightgbm(df=cv_df, 
+#                                   param_grid=parameter_grid,
+#                                   base_save_name="./lightgbm_gridsearch",
+#                                   save_every=20)
+
+```
+
+
+
+# Second GridSearch 
+```{r}
+
+# This is the second GridSearch we performed, after some data set updates (changed post_to to categorical and removed half_seconds_remaining).
+
+# parameter_grid <- list(boosting=c("gbdt"),
+#                       learning_rate=c(0.01, 0.05, 0.1, 0.15, 0.2, 0.3),
+#                       num_rounds=c(100L, 200L, 300L), 
+#                       num_leaves=c(20, 31, 50, 70, 100),
+#                       min_data_in_leaf=c(10, 20, 30),
+#                       feature_fraction=c(0.3, 0.5, 0.75, 1.0),
+#                       max_depth=c(-1, 10, 8, 6),
+#                       extra_trees=c(FALSE))
+
+# Commenting out so we don't accidentally rerun. 
+# Final result has been save to a file (FINAL_sorted_gridsearch_iter_4321.csv)
+#
+#gs_results <- gridsearch_lightgbm(df=cv_df, 
+#                                  param_grid=parameter_grid,
+#                                  base_save_name="./lgbm_gs2",
+#                                  save_every=100)
+```
+
+
+
+# Curiosity Check --> Cross validation improvement with new engineered feature?
+```{r}
+
+# Checking to see how much of an accuracy bump we get when the "pt_pass_props" feature is used. (~4.6% increase). 
+# Need to reperform data cleaning, and not filter out the pt_run_props feature for this to work
+#
+#
+# clean_df <- load_clean_data()
+#
+# 
+# training_params <- get_lgbm_training_parameters(objective="binary",
+#                                                 metric="binary_error",
+#                                                 seed=42,
+#                                                 num_threads=5,
+#                                                 force_row_wise=TRUE,
+#                                                 boosting_type="gbdt",
+#                                                 learning_rate=0.05,
+#                                                 num_boosting_rounds=100,
+#                                                 num_leaves=50,
+#                                                 min_data_in_leaf=30,
+#                                                 feature_fraction=1,
+#                                                 max_depth=-1,
+#                                                 extra_trees=FALSE)
+# 
+# lgbm_cv_datasets <- create_lgb_cv_datasets(df=cv_df, num_folds=5)
+# cross_val_results <- cross_validate_lgbm(cv_datasets=lgbm_cv_datasets, train_params=training_params)
+# 
+# 
+# cross_val_results
+```
+
+
+
+
+# Holdout validation set performance, best gradient boosted model
+```{r}
+
+train_params <- list(objective="binary",
+                     metric="binary_error",
+                     boosting="gbdt",
+                     force_row_wise=TRUE,
+                     learning_rate=0.05,
+                     num_rounds=100, 
+                     num_leaves=50,
+                     feature_fraction=1.0,
+                     max_depth=-1,
+                     num_threads=5,
+                     min_data_in_leaf=30,
+                     extra_trees=FALSE,
+                     seed=42)
+
+
+train_data <- create_lgb_dataset(df=train_df)
+
+
+model <- lightgbm::lightgbm(data=train_data$ds, 
+                            params=train_params)
+
+
+validation_performance <- calculate_holdout_set_performance(model=model,
+                                                            test_df=val_df,
+                                                            metric_type="holdout_validation")
+
+validation_performance
+```
+
+# Final test set performance, best gradient boosted model
+```{r}
+
+test_performance <- calculate_holdout_set_performance(model=model,
+                                                      test_df=test_df,
+                                                      metric_type="final_test")
+
+test_performance
+```
+
+
+# Feature importance scores for the gradient boosted model
+```{r}
+
+gbdt_feature_imps <- plot_lgbm_feature_importance(model=model,
+                                                  measure="Gain",
+                                                  relative_percentages=FALSE,
+                                                  num_features=15L)
+
 ```
 
 
 
 ```{r}
-#parameter_grid <- get_default_param_grid()
 
-parameter_grid <- list(boosting=c("gbdt", "dart"),
-                       learning_rate=c(0.005, 0.01, 0.1, 0.2),
-                       num_rounds=c(250L, 1000L, 1500L), 
-                       num_leaves=c(20, 31, 50, 100),
-                       min_data_in_leaf=c(10, 20, 30),
-                       feature_fraction=c(0.75, 1.0),
-                       max_depth=c(-1, 10),
-                       extra_trees=c(FALSE))
+gbdt_feature_imps <- plot_lgbm_feature_importance(model=model,
+                                                  measure="Gain",
+                                                  num_features=15L, 
+                                                  relative_percentages = TRUE)
 
-gs_results <- gridsearch_lightgbm(df=cv_df, 
-                                  param_grid=parameter_grid,
-                                  base_save_name="./lightgbm_gridsearch",
-                                  save_every=20)
 ```
 
 
 
 
-
-
-
+# Train and vanilla random forest and calculate validation and test set performance, so we can compare to the gradient boosted model above.
 ```{r}
-#source("./NFL_Project_Functions.R")
 
-#all_ds <- create_lgb_cv_datasets(df=cv_df, num_folds=5)
+train_params_rf <- list(objective="binary",
+                        metric="binary_error",
+                        boosting="random_forest",
+                        learning_rate=1,
+                        num_iterations=100,
+                        bagging_fraction=0.63,
+                        bagging_freq=1,
+                        force_row_wise=TRUE,
+                        seed=42)
 
-#gbdt_train_params = list(objective="binary",
-#                         metric="binary_error",
-#                         boosting="gbdt",
-#                         force_row_wise=TRUE,
-#                         learning_rate=0.01,
-#                         num_rounds=50L, 
-#                         num_leaves=25,
-#                         num_threads=5)
 
-#metrics_row <- cross_validate_lgbm(cv_datasets=all_ds, train_params=gbdt_train_params)
+train_data <- create_lgb_dataset(df=train_df)
 
+
+model_rf <- lightgbm::lightgbm(data=train_data$ds, 
+                               params=train_params_rf)
+
+
+validation_performance_rf <- calculate_holdout_set_performance(model=model_rf,
+                                                               test_df=val_df,
+                                                               metric_type="holdout_validation")
+
+validation_performance_rf
 ```
 
 
 ```{r}
+test_performance_rf <- calculate_holdout_set_performance(model=model_rf,
+                                                         test_df=test_df,
+                                                         metric_type="final_test")
+
+test_performance_rf
+```
+
+
+# Feature importance scores for the random forest model
+```{r}
+
+
+rf_feature_imps <- plot_lgbm_feature_importance(model=model_rf,
+                                                measure="Gain",
+                                                relative_percentages=FALSE,
+                                                num_features=15L)
 
 ```
 
+
+```{r}
+
+rf_feature_imps <- plot_lgbm_feature_importance(model=model_rf,
+                                                measure="Gain",
+                                                relative_percentages=TRUE,
+                                                num_features=15L)
+
+```
+
+
+
+```{r}
+
+```
 
 ```{r}
 
@@ -107,4 +290,15 @@ gs_results <- gridsearch_lightgbm(df=cv_df,
 ```{r}
 
 ```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
 

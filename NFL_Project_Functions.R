@@ -229,6 +229,19 @@ plot_histogram_by_target_level <- function(df, continuous_variable, binary_targe
 }
 
 
+# Measure --> can be "Gain", "Cover" or "Frequency"
+plot_lgbm_feature_importance <- function(model, relative_percentages=FALSE, measure="Gain", num_features=15L){
+  
+  feature_importances <- lightgbm::lgb.importance(model=model, percentage = relative_percentages)
+  
+  feature_importances_plot <- lightgbm::lgb.plot.importance(tree_imp=feature_importances,
+                                                            measure=measure,
+                                                            top_n=num_features)
+  
+  return(feature_importances_plot)
+}
+
+
 # =================================================== END PLOTTING FUNCTIONS ===================================================
 
 
@@ -382,7 +395,7 @@ create_lgb_cv_datasets <- function(df, num_folds, target_column="play_type", cv_
 
 
 get_cv_metric_names <- function(){
-  return(c("accuracy", "auc", "precision", "recall", "logloss"))
+  return(c("accuracy", "auc", "precision", "recall", "logloss", "specificity"))
 }
 
 
@@ -424,14 +437,18 @@ calculate_cv_fold_metrics <- function(model, fold_data, fold_number){
   
 }
 
-calculate_fold_metrics <- function(predicted_classes, predicted_probabilities, true_classes, metric_type, fold_number){
+calculate_fold_metrics <- function(predicted_classes, predicted_probabilities, true_classes, metric_type, fold_number, from_gridsearch=TRUE){
   
   
   # Metric names that indicate what metric is being calculate, the fold number it corresponds to, and 
   # the metric type (whether it is a training or test metric).
   metric_names <- get_cv_metric_names()
-  full_metric_names <- paste0(metric_names, "_fold", fold_number, "_", metric_type)
   
+  if(from_gridsearch){ # If this function is being called from the gridsearch function
+    full_metric_names <- paste0(metric_names, "_fold", fold_number, "_", metric_type)  
+  }else{
+    full_metric_names <- paste0(metric_names, "_", metric_type)
+  }
   
   accuracy <- Metrics::accuracy(actual=true_classes,
                                 predicted=predicted_classes)
@@ -450,6 +467,9 @@ calculate_fold_metrics <- function(predicted_classes, predicted_probabilities, t
   average_logloss <- Metrics::logLoss(actual=true_classes,
                                       predicted=predicted_probabilities)
   
+  specificity <- InformationValue::specificity(actuals=true_classes,
+                                               predictedScores=predicted_probabilities,
+                                               threshold=0.5)
   
   # It is important that the columns are inserted into this dataframe in the same
   # order that the metric names appear in full_metric_names
@@ -457,7 +477,8 @@ calculate_fold_metrics <- function(predicted_classes, predicted_probabilities, t
                             auc=auc,
                             prec=precision,
                             recall=recall,
-                            ll=average_logloss)
+                            ll=average_logloss,
+                            specificity=specificity)
   
   # Set the column names
   colnames(metrics_row) <- full_metric_names
@@ -694,9 +715,34 @@ gridsearch_lightgbm <- function(df, param_grid, num_folds=5, training_objective=
   
   save_path <- paste0("./FINAL_sorted_gridsearch", "_iter_", iterations_counter, ".csv")
   write.csv(x=final_model_df_clean, file=save_path, row.names=FALSE)
-  
+
+  save_path <- paste0("./FINAL_sorted_gridsearch_Expanded", "_iter_", iterations_counter, ".csv")
+  write.csv(x=all_model_rows, file=save_path, row.names=FALSE)
+
   # Return here
   return(final_model_df_clean)
+}
+
+
+calculate_holdout_set_performance <- function(model, test_df, metric_type, label="play_type", classification_threshold=0.5){
+  
+  test_data_prepared <- build_features_matrix_and_label(df=test_df)
+  
+  # Predicted class probabilities on the test set
+  predicted_probabilities <- predict(object=model, 
+                                     data=test_data_prepared$features_matrix)
+  
+  # Convert the probability predictions into class predictions
+  predicted_classes <- as.numeric(predicted_probabilities > classification_threshold)
+  
+  test_metrics <- calculate_fold_metrics(predicted_classes=predicted_classes,
+                                         predicted_probabilities=predicted_probabilities,
+                                         true_classes=test_data_prepared$label,
+                                         metric_type=metric_type,
+                                         fold_number="N/A",
+                                         from_gridsearch=FALSE)
+  
+  return(test_metrics)
 }
 # =================================================== END MODELING FUNCTIONS ===================================================
 
