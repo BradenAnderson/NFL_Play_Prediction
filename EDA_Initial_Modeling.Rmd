@@ -21,7 +21,11 @@ str(clean_df)
 # play_type
 table(clean_df$play_type) # count of each play_type
 
-clean_df %>% ggplot(aes(x=play_type, fill=play_type)) + geom_bar(position = 'dodge') + theme_minimal()
+p1 <- clean_df %>% ggplot(aes(x=play_type, fill=play_type)) + geom_bar(position = 'dodge') + 
+    labs(title='Distribution of Play Type', subtitle = 'Response variable', x='Play Type', y='Frequency', fill='Play Type') +
+    scale_fill_brewer(palette = 'Set2') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
 
 # down. possible correlation with score_differential esp on 3rd down?
 table(clean_df$down) # count of each level
@@ -31,7 +35,15 @@ clean_df %>% ggplot(aes(x=down, fill=play_type)) +
           geom_bar(position = 'dodge') + theme_minimal() # count
 clean_df %>% ggplot(aes(x=down, fill=play_type)) + 
           geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
-          theme_minimal() # porportion (pass and run of down == 1 will sum to 1)
+          theme_minimal() # proportion (pass and run of down == 1 will sum to 1)
+geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..])) +
+          theme_minimal() # proportion, no dodge
+plot(play_type~down, data=clean_df, col=c('blue', 'red'))
+p3 <- clean_df %>% ggplot(aes(x=down, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Down', subtitle = 'Down of the given play', x='Down', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
 
 # pos_to
 table(clean_df$pos_to) # count of time outs by possession team
@@ -40,9 +52,11 @@ xtabs(~play_type+pos_to, data=clean_df) # count of timeouts per play_type
 clean_df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
           geom_bar(position = 'dodge') + 
           theme_minimal() # count
-clean_df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
-          geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
-          theme_minimal() # proportion (pass and run of pos_to == 0 will sum to 1)
+p2 <- clean_df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Posteam Timeout', subtitle = 'Number of timeouts retained by possession team', x='Timeout', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
 
 # goal_to_go
 table(clean_df$goal_to_go)
@@ -51,9 +65,10 @@ xtabs(~play_type+goal_to_go, data=clean_df)
 clean_df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
             geom_bar(position = 'dodge') + 
             theme_minimal() # count
-clean_df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
-            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
-            theme_minimal() # proportion (pass + run of goal_to_go == 0 will sum to 1)
+p4 <- clean_df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Goal to Go', subtitle = 'Binary indicator if the posteam is in a goal down situation', x='Goal to Go', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
 
 # roof
 table(clean_df$roof)
@@ -61,9 +76,11 @@ xtabs(~play_type+roof, data=clean_df)
 
 clean_df %>% ggplot(aes(x=roof, fill=play_type)) + 
             geom_bar(position = 'dodge') + theme_minimal() # count
-clean_df %>% ggplot(aes(x=roof, fill=play_type)) + 
-            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
-            theme_minimal() # prop (pass + run of roof == closed will sum to 1)
+p5 <- clean_df %>% ggplot(aes(x=roof, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Roof', subtitle = 'Stadium roof type: closed, dome, open, outdoors, retractable', x='Roof', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
 
 # div_game
 table(clean_df$div_game)
@@ -72,9 +89,13 @@ xtabs(~play_type+div_game, data=clean_df)
 clean_df %>% ggplot(aes(x=div_game, fill=play_type)) + 
             geom_bar(position = 'dodge') + 
             theme_minimal() # count
-clean_df %>% ggplot(aes(x=div_game, fill=play_type)) + 
-            geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), position="dodge") + 
-            theme_minimal() # proportion (pass + run of div_game == 0 will sum to 1)
+p6 <- clean_df %>% ggplot(aes(x=div_game, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Division Game', subtitle = 'Binary indicator if the given game was a division game', x='Division Game', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+plot_grid(p1, p2, p3, p4, p5, p6)
 ```
 
 # EDA: Numerical
@@ -89,20 +110,18 @@ clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) +
 clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
         geom_density(alpha=.5) + 
         theme_minimal() # by density
-clean_df %>% ggplot(aes(x=score_differential, fill=play_type)) + 
-        geom_boxplot(alpha=.5) + 
-        theme_minimal() # boxplot
+q1 <- clean_df %>% ggplot(aes(x=score_differential, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Score Differential', subtitle = 'Between posteam and defteam at the start of the play', x='Score Differential', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
-## yardline_100
+# yardline_100
 clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
           geom_histogram(alpha=.5) + 
           theme_minimal() # histogram
 clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal() # density
-clean_df %>% ggplot(aes(x=yardline_100, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal() # boxplot
+q2 <- clean_df %>% ggplot(aes(x=yardline_100, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Yard Line', subtitle = "Distance from the opponent's endzone for the posteam", x='Yard line', y = 'Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
 ## ydstogo
 clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
@@ -111,9 +130,8 @@ clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) +
 clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal() # density
-clean_df %>% ggplot(aes(x=ydstogo, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal() # boxplot
+q3 <- clean_df %>% ggplot(aes(x=ydstogo, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Yards Left to Go', subtitle = "From first down marker or endzone in goal down situations", x='Yards to go', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
 ## fg_prob
 clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
@@ -122,9 +140,8 @@ clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) +
 clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal()
-clean_df %>% ggplot(aes(x=fg_prob, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+q4 <- clean_df %>% ggplot(aes(x=fg_prob, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by FG Probability', subtitle = "Predicted probability of the posteam scoring a FG next", x='Field goal probability', y ='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
 ## td_prob. good predictor
 clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
@@ -133,31 +150,38 @@ clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) +
 clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal()
-clean_df %>% ggplot(aes(x=td_prob, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+q5 <- clean_df %>% ggplot(aes(x=td_prob, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by TD Probability', subtitle = "Predicted probability of the posteam scoring a TD next", x='Tochdown probability', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
-## wp
+# wp
 clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
           geom_histogram(alpha=.5) + 
           theme_minimal()
 clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal()
-clean_df %>% ggplot(aes(x=wp, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+q6 <- clean_df %>% ggplot(aes(x=wp, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Win Probability', subtitle = "For posteam given current situation at start of the play", x='Win probability', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
-## temp
+# game_seconds_remaining
+clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
+          geom_histogram(alpha=.5) + 
+          theme_minimal()
+clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
+          geom_density(alpha=.5) + 
+          theme_minimal()
+q7 <- clean_df %>% ggplot(aes(x=game_seconds_remaining, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Time', subtitle = "Seconds remaining in the game", x='Time (seconds)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# temp
 clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
           geom_histogram(alpha=.5) + 
           theme_minimal()
 clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal()
-clean_df %>% ggplot(aes(x=temp, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+q8 <- clean_df %>% ggplot(aes(x=temp, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Temperature', subtitle = "For stadium with `roof` = `outdoors`, `open`, or `retractable`", x='Temperature (Fahrenheit)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
 ## wind
 clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
@@ -166,31 +190,18 @@ clean_df %>% ggplot(aes(x=wind, fill=play_type)) +
 clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
           geom_density(alpha=.5) + 
           theme_minimal()
-clean_df %>% ggplot(aes(x=wind, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+q9 <- clean_df %>% ggplot(aes(x=wind, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Wind Speed', subtitle = "For stadium with `roof` = `outdoors`, `open`, or `retractable`", x='Wind speed (MPH)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
 
-## half_seconds_remaining
-clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
-          geom_histogram(alpha=.5) + 
-          theme_minimal()
-clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
-          geom_density(alpha=.5) + 
-          theme_minimal()
-clean_df %>% ggplot(aes(x=half_seconds_remaining, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
-
-## game_seconds_remaining
-clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
-          geom_histogram(alpha=.5) + 
-          theme_minimal()
-clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
-          geom_density(alpha=.5) + 
-          theme_minimal()
-clean_df %>% ggplot(aes(x=game_seconds_remaining, fill=play_type)) + 
-          geom_boxplot(alpha=.5) + 
-          theme_minimal()
+plot_grid(q1 + theme(legend.position="none"), q2+ theme(legend.position="none"), q3+ theme(legend.position="none"), q4+ theme(legend.position="none"), q5+ theme(legend.position="none"), q6+ theme(legend.position="none"), q7+ theme(legend.position="none"), q8+ theme(legend.position="none"), q9+ theme(legend.position="none"))
+```
+Scatterplot Matrix of Quant Variables
+```{r}
+library(GGally)
+# select numerical var and response var
+num_df <- clean_df %>% select(which(sapply(.,class)=="numeric"),play_type)
+# scatterplot matrix of numerical vars colored by level of response var
+ggpairs(num_df[, c(1:9)], aes(alpha=.5, color=num_df$play_type), title = 'Scatterplot Matrix of Quantitative Variables Grouped by Play Type') + scale_fill_brewer(palette = 'Set1')
 ```
 
 # Split data
@@ -204,26 +215,70 @@ valid <- clean_df[index$valid, ]
 
 # Logistic Regression: Simple
 
-Model with full data:
+Set up, build model
 ```{r}
-simple.mod.full <- glm(play_type~., family = binomial, data=clean_df)
-summary(simple.mod.full)
-pred <- predict(simple.mod.full, clean_df, type = 'response')
+options(scipen = 9999) # remove scientific notation
 
+# confirm rush is the successful outcome
+levels(clean_df$play_type)
+
+ # run all vars. insig div_game, roof (all levels except retractable)
+mod <- glm(play_type~., family = binomial, data=train)
+summary(mod)
+# remove div_game. insig roof (all but retractable), temp .06; remove roof
+mod <- glm(play_type~.-div_game, family = binomial, data = train) 
+summary(mod)
+# all are sig including temp
+mod <- glm(play_type~.-div_game-roof, family = binomial, data = train)
+summary(mod)
+# removed temp due possible multicollinearity iwth wind (-46% corr) 
+mod <- glm(play_type~.-div_game-roof-temp, family = binomial, data = train)
+summary(mod)
+
+vif(mod) # view vif. use library(car)
+exp(mod$coefficients) # exponentiate the coefficients
 ```
 
-# Logistic Regression: Complex
+Train model on **validation** set (acc 66%)
 ```{r}
+# accuracy: 65.85461%
+pred.val <- predict(mod, valid, type = 'response')
+tab <- table(pred.val>.5, valid$play_type, dnn = c('predicted', 'actual'))
+tab
+sum(diag(tab))/sum(tab)*100
 
+confusionMatrix(valid$play_type, pred.val, threshold = .5)
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1)
+optimal <- optimalCutoff(valid$play_type, pred.val)[1] # 0.5025712 optimal cutoff
+misClassError(valid$play_type, pred.val, threshold = .5) # 0.3412 misclass error
+1-misClassError(valid$play_type, pred.val, threshold = .5) # 0.6588 accuracy
+sensitivity(valid$play_type, pred.val) # 0.4895038 sensitivity
+specificity(valid$play_type, pred.val) # 0.776641 specificity
+precision(valid$play_type, pred.val) # 0.604098 precision
+
+plotROC(valid$play_type, pred.val) # 0.7143
+AUROC(actuals=valid$play_type, predictedScores=pred.val)
+ks_plot(actuals=valid$play_type, predictedScores=pred.val)
 ```
-
-# PCA+LDA/QDA
+Train data on **test** set (acc 66%)
 ```{r}
+## train data on TEST: accuracy: 65.75793%
+pred.test <- predict(mod, test, type = 'response')
+tab2 <- table(pred.test>.5, test$play_type, dnn = c('predicted', 'actual'))
+tab2
+sum(diag(tab2))/sum(tab2)*100
 
+confusionMatrix(test$play_type, pred.test, threshold = .5)
+test$play_type <- ifelse(test$play_type=="pass", 0, 1)
+optimal2 <- optimalCutoff(test$play_type, pred.test)[1] 
+
+misClassError(test$play_type, pred.test, threshold = .5) # 0.3424 misclass error
+1-misClassError(test$play_type, pred.test, threshold = .5) # 0.6576 accuracy
+sensitivity(test$play_type, pred.test) # 0.4926513 sensitivity
+specificity(test$play_type, pred.test) # 0.7723891 specificity
+precision(test$play_type, pred.test) # 0.6010713 precision
+
+plotROC(test$play_type, pred.test) # 0.7107914
+AUROC(actuals=test$play_type, predictedScores=pred.test)
+ks_plot(actuals=test$play_type, predictedScores=pred.test)
 ```
-
-# Nonparametric 
-```{r}
-
-```
-
