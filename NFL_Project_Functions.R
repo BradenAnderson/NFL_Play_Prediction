@@ -1,7 +1,8 @@
 source("./NFL_Project_Function_Helpers.R")
 
 
-load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL){
+load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL, remove_run_props=FALSE, 
+                            remove_pass_props=TRUE, save_dataset=FALSE){
   
   
   # load play by play data
@@ -18,18 +19,23 @@ load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL){
   df <- generate_new_features(df)
   
   # Filter based on column-based conditions
-  df <- apply_column_filters(df)
+  df <- apply_column_filters(df, 
+                             remove_run_props=remove_run_props, 
+                             remove_pass_props=remove_pass_props)
   
   
   # Leave this operation at the end.
   # Set all variables to the appropriate datatype
   df <- set_datatypes(df)
   
-  # Save the clean dataset to a compressed .csv file
-  full_save_path <- save_dataset_to_file(df=df, 
-                                         save_path=save_path, 
-                                         start_year=start_year, 
-                                         end_year=end_year)
+  if(save_dataset){
+  
+    # Save the clean dataset to a compressed .csv file
+    full_save_path <- save_dataset_to_file(df=df, 
+                                           save_path=save_path, 
+                                           start_year=start_year, 
+                                           end_year=end_year)
+  }
   
   
   return(df)
@@ -243,6 +249,67 @@ plot_lgbm_feature_importance <- function(model, relative_percentages=FALSE, meas
 
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
+
+
+cv_added_complexity_models <- function(df, base_model_features, candidate_interaction_features, target="play_type", seed_number=42, 
+                                       caret_cv_method="cv", caret_cv_folds=5, save_every=5, base_save_name="./added_compelxity_search",
+                                       num_jobs=4){
+  
+  
+  all_feature_sets <- generate_all_model_feature_sets(base_model_features=base_model_features,
+                                                      candidate_interaction_features=candidate_interaction_features)
+  
+  iterations_counter <- 1
+  
+  for(model_index in 1:length(all_feature_sets)){
+    
+    set.seed(seed_number)  
+    
+    model_formula <- as.formula(paste0(target, "~",  stringr::str_c(all_feature_sets[[model_index]], collapse=" + ")))
+    
+    
+    #cluster <- makePSOCKcluster(num_jobs)
+    #registerDoParallel(cluster)
+    
+    logreg_cv <- caret::train(form=model_formula,
+                              data=df,
+                              trControl=caret::trainControl(method=caret_cv_method, number=caret_cv_folds),
+                              method="glm",
+                              family="binomial")
+    
+    
+    #stopCluster(cluster)
+    
+    cv_result_df <- logreg_cv$results
+    
+    
+    cv_result_df[1,"parameter"] <- stringr::str_c(all_feature_sets[[model_index]], collapse=" ")
+    
+    
+    if(model_index == 1){
+      final_result_df <- cv_result_df
+    }else{
+      final_result_df <- rbind(final_result_df, cv_result_df)
+    }
+    
+    # Save the current grid search results
+    if(iterations_counter %% save_every == 0){
+      save_path <- paste0(base_save_name, "_iter_", iterations_counter, ".csv")
+      write.csv(x=final_result_df, file=save_path, row.names=FALSE)
+    }
+    
+    # Increment total iterations performed, keep this at the end
+    iterations_counter <-  iterations_counter + 1 
+    
+  }
+  
+  final_result_df <- final_result_df[order(final_result_df[,"Accuracy"], decreasing=TRUE),]
+  
+  save_path <- paste0("added_complexity_search_FINAL", "_iter_", iterations_counter, ".csv")
+  write.csv(x=final_result_df, file=save_path, row.names=FALSE)
+  
+  return(final_result_df)
+}
 
 
 
@@ -743,7 +810,9 @@ calculate_holdout_set_performance <- function(model, test_df, metric_type, label
                                          from_gridsearch=FALSE)
   
   return(test_metrics)
+  
 }
+
 # =================================================== END MODELING FUNCTIONS ===================================================
 
 

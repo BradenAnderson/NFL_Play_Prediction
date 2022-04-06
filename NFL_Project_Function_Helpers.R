@@ -6,6 +6,9 @@ library(ggpmisc)
 library(splitTools)
 library(lightgbm)
 library(InformationValue)
+library(utils)
+library(caret)
+library(doParallel)
 
 # =================================================== DATA CLEANING FUNCTIONS ===================================================
 
@@ -34,7 +37,7 @@ library(InformationValue)
 #    end_yard_line, fixed_drive_result
 
 
-get_additional_columns_to_remove <- function(){
+get_additional_columns_to_remove <- function(remove_run_props, remove_pass_props){
   
 
   remove_misc <- c('game_date', 'season', 'season_type', 'stadium', 'game_stadium', 'weather', 
@@ -53,7 +56,15 @@ get_additional_columns_to_remove <- function(){
                    'total', 'spread_line', 'success', 'home_coach', 'away_coach', 'rusher', 
                    'receiver', 'passer', 'name', 'pass', 'rush', 'fantasy', 'out_of_bounds', 
                    'play', 'pass_oe', 'cpoe', 'wpa', 'quarter_seconds_remaining', 'cp', 'wpa', 
-                   'quarter_seconds_remaining', 'vegaswp', 'half_seconds_remaining', 'pt_run_props')
+                   'quarter_seconds_remaining', 'vegaswp', 'half_seconds_remaining')
+  
+  if(remove_run_props){
+    remove_misc <- c(remove_misc, 'pt_run_props')
+  }
+  
+  if(remove_pass_props){
+    remove_misc <- c(remove_misc, 'pt_pass_props')
+  }
   
   return(remove_misc)
 }
@@ -75,7 +86,7 @@ apply_row_filters <- function(df){
 }
 
 
-apply_column_filters <- function(df){
+apply_column_filters <- function(df, remove_run_props, remove_pass_props){
   
   # Returns the name of all columns that end in "_id"
   # 53 column names returned. 
@@ -158,7 +169,7 @@ apply_column_filters <- function(df){
   first_columns <- grep(pattern="^first_", x=colnames(df), value=TRUE) 
   
   # Grabbing a list of other assorted column names that need to be removed.
-  additional_columns <- get_additional_columns_to_remove()
+  additional_columns <- get_additional_columns_to_remove(remove_run_props=remove_run_props, remove_pass_props=remove_pass_props)
   
   # Combine all the above columns into a single vector
   columns_to_remove <- c(additional_columns, punt_columns, jersey_number_columns, 
@@ -729,7 +740,86 @@ calculate_test_set_performance <- function(model, test_df, label="play_type", cl
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
 
+generate_all_possible_interactions <- function(features){
+  
+  interaction_terms <- c()
+  
+  for(feature_index in 1:(length(features)-1)){
+    for(interaction_index in (feature_index+1):length(features)){
+      
+      interaction_terms <- append(x=interaction_terms, 
+                                  values=paste0(features[feature_index], ":", features[interaction_index]))
+      
+    }
+  }
+  
+  return(interaction_terms)
+}
 
+
+get_predictor_combos_manual <- function(features){
+  
+  # CREATES A LIST OF LISTS, WHERE EACH SUBLIST CONTAINS A COMBINATION OF FEATURES
+  for(num_features in 1:length(features)){
+    
+    new_combos <- utils::combn(x=features,
+                               m=num_features,
+                               simplify=FALSE)
+    
+    if(num_features == 1){
+      combined_combos <- new_combos
+    }else{
+      #combined_combos <- c(combined_combos, new_combos)
+      combined_combos <- append(combined_combos, new_combos)
+    }
+  }
+  
+  return(combined_combos)
+}
+
+
+append_base_feats_to_interaction_combos <- function(base_model_features, all_interaction_combos){
+  
+  all_possible_model_features <- all_interaction_combos
+  
+  for(model_index in 1:length(all_possible_model_features)){
+    all_possible_model_features[[model_index]] <- c(base_features, all_interaction_combos[[model_index]])
+  }
+  
+  return(all_possible_model_features)
+  
+}
+
+
+generate_all_model_feature_sets <- function(base_model_features, candidate_interaction_features){
+  
+  # All possible interaction terms based on a list of features
+  # Example: features list = c("a", "b", "c", "d") 
+  # then all possible interactions would be "a:b", "a:c", "a:d", "b:c", "b:d", "c:d"
+  candidate_interaction_sets <- generate_all_possible_interactions(features=candidate_interaction_features)
+  
+  # All possible combinations of the candidate interaction terms found above
+  all_interaction_combinations <- get_predictor_combos_manual(features=candidate_interaction_sets)
+  
+  # For each possible set of candidate interaction terms, append the base features that we always want to include
+  all_model_feature_sets <- append_base_feats_to_interaction_combos(base_model_features=base_model_featuers, 
+                                                                    all_interaction_combos=all_interaction_combinations)
+  
+  # Include the base model without any additional complexity for comparison
+  all_model_feature_sets[[length(all_model_feature_sets) + 1]] <- base_model_features
+  
+  return(all_model_feature_sets)
+  
+}
+
+
+# =================================================== FUNCTIONS FOR LOGISTIC REG ADDED COMPLEXITY SEARCH ===================================================
+
+
+
+
+
+# =================================================== END FUNCTIONS FOR LOGISTIC REG ADDED COMPLEXITY SEARCH ===================================================
 
 
 
