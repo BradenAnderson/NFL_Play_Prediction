@@ -561,7 +561,7 @@ pred <- predict(simple.mod.full, clean_df, type = 'response')
 
 ```
 
-# PCA+LDA/QDA
+# PCA 1- don't use this
 ```{r}
 library(ISLR)
 library(gplots)
@@ -608,8 +608,17 @@ ggplot(data = X, aes(x = PC1, y = PC2)) +
 #raw
 #wd= raw[complete.cases(raw),] #subsetting with removal of NA's
 ```
-#PCA
+#PCA 2- use this
 ```{r}
+install.packages("contourPlot")
+library(contourPlot)
+library(MASS)
+library(caret)
+library(mlbench)
+
+#Dataframe set to compare PC's
+X0 <- train[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_differential', 'fg_prob', 'td_prob', 'wp', 'temp', 'wind', "play_type")]
+
 X1 <- train[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_differential', 'fg_prob', 'td_prob', 'wp', 'temp', 'wind')] #temp, wind, and pos_to could be categorical variables so excluding for now
 #find total values, 9 predictors
 
@@ -618,51 +627,72 @@ X2  <- test[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_diffe
 X1 <- as.matrix(X1) #easier to transpose versus DF's
 X2 <- as.matrix(X2)
 
+#pca1 <-prcomp(X1) #no scale
 pca1 <- prcomp(X1, scale. = TRUE) #Scale= TRUE given covariates like game_seconds have such large numbers
 pca1$sdev #representing SD of covariates
+
+#code in case need to use df versus matrix
+pca0<-pca1$x
+pca0<-data.frame(pca0)
 
 pca2 <- prcomp(X2, scale. = TRUE)
 
 summary(X1)
 
 z1 <-pca1$sdev
+
+#par(mfrow=c(1,2)) #used to show pre-scale and scale
+#plot(1:9, z1, main="Scree Plot PC's prior to scaling", xlab= "PC's", ylab="Prop. Var. Explained") #pre-scaling
 plot(1:9, z1) #when scaling, you'll notice more PC's show variance versus not scaling (only 1 and 2 PC's)
 
-plot(1:9, z1^2/sum(z1^2)) #Scree plot- variance by each features
-plot(1:9, cumsum(z1^2/sum(z1^2))) #Total/aggregate variance by no. of features
+##overlay two plots
+l1<- plot(1:9, z1^2/sum(z1^2),type='l',main="Scree Plot PC's",xlab= "PC's", ylab="Prop. Var. Explained",ylim=c(0,1)) #Scree plot- variance by each features
+#l2<- plot(1:9, cumsum(z1^2/sum(z1^2)),type='b',main="Total/Aggregate Variance by No. of Features",xlab= "PC's", ylab="Prop. Var. Explained",ylim=c(0,1)) #Total/aggregate variance by no. of features; don't need to run this 
+#1st 5 will account for ~85% of the variance; keep 5
+lines(1:9, cumsum(z1^2/sum(z1^2)), type='b', col='blue', lty= 1, pch=20, lwd=1)
 
-cumsum(z1^2/sum(z1^2)) #1st 5 will account for ~85% of the variance; keep 5
+cumdf<-cumsum(z1^2/sum(z1^2)) 
+cumsum(z1^2/sum(z1^2)) #Cumulative Proportion
+plot(1:9,cumdf,type="l",main="Cumulative proportion", xlab="PC's", ylab= "Prop. Var. Explained", ylim=c(0,1))
+#1st 5 will account for ~85% of the variance; keep 5
+
+lab_to_col = function (labels){
+cols = rainbow (length(unique(labels)))
+cols[as.numeric (as.factor(labels))]
+}
+
+par(mfrow=c(1,2))
+
+l1<-plot(pca1$x[,1], pca1$x[,2], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC1', ylab='PC2')
+l2<-plot(pca1$x[,4], pca1$x[,5], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC4', ylab='PC5')
+mtext("Comparison of PC 1 & 2 vs 4 & 5", side= 3, line= -2, outer=TRUE, cex.main= 1.5)
+
+library(plotly)
 
 pca1$rotation #look for values on same side of 0
 #PC1= TD Scoreability, yardline_100 is inversely correlated to td_prob- TD prob goes up when yard line goes down
-#PC2= Gloating (score differential)
+#PC2= Gloating (score differential & wp)
 #PC3= Climate: Wind & Temp are most dominant features in 3rd most important thing
 #PC4= KickIt: (YdstoGo v fg_prob)...
 #PC5= Distance strategy(Game_seconds_remaining + ydstogo)
+#PC6= ??
 
-
-pca1$center #update comment
+pca1$center
 
 pca1$scale
 
 head(pca1$x) #take this to regression algorithms
 
-##clean up lines 643 to 647
-g<-as.data.frame(pca1$x)
+#based on our findings PCA/scatterplot matrix of separation/disparity doesn't bring a lot of value for EDA- this is due to low # of predictors being used to start
 
-g%>%ggplot(aes(x = PC1, y = PC2)) +
-  geom_point(aes(col=X1$play_type), size=1)+
-  ggtitle("PCA of Play Type")
 ```
 
 #LDA versus QDA
 ```{r}
 #LDA
 library(ROCR)
-library(MASS)
-library(caret)
 
-dx<-data.frame(as.data.frame(pca2$x[,1:8]))
+dx<-data.frame(as.data.frame(pca2$x[,1:8])) #decided on 8 predictors after running permutations of PC's
 dx$play_type=test$play_type
 mod<-lda(play_type ~., data=dx) #creating model for LDA
 
@@ -672,7 +702,7 @@ t<-table(pred=pred,actual=test$play_type) #correct ~50K passes, run ~11, incorre
 t
 
 acc<- (t[1,1] + t[2,2])/sum(t) #accuracy
-acc #63.48609%
+acc
 
 gmaAcc<-(t[1,1]+t[2,1])/sum(t) #pass play summary
 gmaAcc
@@ -685,13 +715,15 @@ modPred2
 
 predR <- prediction(modPred2, dx$play_type)
 roc.perf = performance(predR, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(predR, measure = "auc")
-auc.train <- auc.train@y.values
+auc.test <- performance(predR, measure = "auc")
+auc.test <- auc.test@y.values
+
+par(mfrow=c(1,2))
 
 #Plot ROC
 plot(roc.perf,main="LDA")
 abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+text(x = .40, y = .6,paste("AUC = ", round(auc.test[[1]],3), sep = ""))
 
 #QDA
 modQ<-lda(play_type ~., data=dx) #creating model for QDA
@@ -701,7 +733,7 @@ tQ<-table(pred=predQ,actual=test$play_type) #very nominal accuracy improvement- 
 tQ
 
 accQ<- (tQ[1,1] + tQ[2,2])/sum(tQ) #accuracy
-accQ #63.48609%
+accQ 
 
 #ROC- QDA
 modPredQ<-predict(mod, newdx=dx1)$posterior
@@ -711,13 +743,13 @@ modPredQ2
 
 predRQ <- prediction(modPredQ2, dx$play_type)
 roc.perf1 = performance(predRQ, measure = "tpr", x.measure = "fpr")
-auc.train1 <- performance(predRQ, measure = "auc")
-auc.train1 <- auc.train1@y.values
+auc.test1 <- performance(predRQ, measure = "auc")
+auc.test1 <- auc.test1@y.values
 
 #Plot ROC- QDA
-plot(roc.perf1,main="LDA")
+plot(roc.perf1,main="QDA")
 abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+text(x = .40, y = .6,paste("AUC = ", round(auc.test1[[1]],3), sep = ""))
 
 ```
 
