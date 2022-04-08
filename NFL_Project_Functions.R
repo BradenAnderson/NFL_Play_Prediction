@@ -235,6 +235,65 @@ plot_histogram_by_target_level <- function(df, continuous_variable, binary_targe
 }
 
 
+
+plot_scree <- function(df, features, scale=TRUE, prop_var_color="#00BFC4", prop_var_linetype="dashed", cum_var_color="#F8766D", 
+                       cum_var_linetype="dashed", round_digits=3, prop_txt_vjust=-0.2, prop_txt_hjust=-0.1, cum_txt_vjust=-0.75, 
+                       cum_txt_hjust=0.8, annotate_text=TRUE, add_table=TRUE, extend_x_by=2, table_x=Inf, table_y=Inf){
+  
+  X <- df[,features]
+  X <- as.matrix(X)
+  pca <- stats::prcomp(X, scale=scale)
+  
+  sqrt_eigen_values <- pca$sdev
+  
+  prop_variance_explained <- sqrt_eigen_values^2/sum(sqrt_eigen_values^2)
+  cum_prop_variance_explained <- cumsum(sqrt_eigen_values^2/sum(sqrt_eigen_values^2))
+  
+  num_components <- length(prop_variance_explained)
+  
+  plot_df <- data.frame(prop_variance_explained=prop_variance_explained, 
+                        cum_variance_explained=cum_prop_variance_explained,
+                        principal_component=seq(from=1, to=num_components, by=1),
+                        prop_var_exp_round=round(prop_variance_explained, round_digits),
+                        cum_var_exp_round=round(cum_prop_variance_explained, round_digits))
+  
+  
+  p <- ggplot(data=plot_df) + 
+    geom_line(mapping=aes(x=principal_component, y=prop_variance_explained), color=prop_var_color, linetype=prop_var_linetype) +
+    geom_point(mapping=aes(x=principal_component, y=prop_variance_explained), color=prop_var_color) + 
+    geom_line(mapping=aes(x=principal_component, y=cum_variance_explained), color=cum_var_color, linetype=cum_var_linetype) + 
+    geom_point(mapping=aes(x=principal_component, y=cum_variance_explained), color=cum_var_color) + 
+    scale_x_continuous(labels=paste0("PC",seq(from=1, to=num_components, by=1)),
+                       breaks=seq(from=1, to=num_components, by=1)) +
+    coord_cartesian(xlim=c(1, num_components+extend_x_by), clip='off')
+  
+  
+  if(annotate_text){
+    p <- p + 
+      geom_text(mapping=aes(x=principal_component, y=prop_variance_explained, label=prop_var_exp_round), 
+                color=prop_var_color, vjust=prop_txt_vjust, hjust=prop_txt_hjust) + 
+      geom_text(mapping=aes(x=principal_component, y=cum_variance_explained, label=cum_var_exp_round), 
+                color=cum_var_color, vjust=cum_txt_vjust, hjust=cum_txt_hjust)
+    
+  }
+  
+  if(add_table){
+    table_df <- data.frame(prop=plot_df[,"prop_var_exp_round"],
+                           cumm=plot_df[,"cum_var_exp_round"])
+    
+    p <- p + annotate(geom="table", 
+                      x=table_x, 
+                      y=table_y, 
+                      label=list(table_df))
+  }
+  
+  return(p)
+  
+}
+
+
+
+
 # Measure --> can be "Gain", "Cover" or "Frequency"
 plot_lgbm_feature_importance <- function(model, relative_percentages=FALSE, measure="Gain", num_features=15L){
   
