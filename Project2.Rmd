@@ -619,9 +619,11 @@ library(mlbench)
 #Dataframe set to compare PC's
 X0 <- train[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_differential', 'fg_prob', 'td_prob', 'wp', 'temp', 'wind', "play_type")]
 
+#using train subset
 X1 <- train[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_differential', 'fg_prob', 'td_prob', 'wp', 'temp', 'wind')] #temp, wind, and pos_to could be categorical variables so excluding for now
 #find total values, 9 predictors
 
+#using test subset
 X2  <- test[,c('yardline_100', 'game_seconds_remaining', 'ydstogo', 'score_differential', 'fg_prob', 'td_prob', 'wp', 'temp', 'wind')]
 
 X1 <- as.matrix(X1) #easier to transpose versus DF's
@@ -635,6 +637,7 @@ pca1$sdev #representing SD of covariates
 pca0<-pca1$x
 pca0<-data.frame(pca0)
 
+#creating for LDA/QDA
 pca2 <- prcomp(X2, scale. = TRUE)
 
 summary(X1)
@@ -652,9 +655,15 @@ l1<- plot(1:9, z1^2/sum(z1^2),type='l',main="Scree Plot PC's",xlab= "PC's", ylab
 lines(1:9, cumsum(z1^2/sum(z1^2)), type='b', col='blue', lty= 1, pch=20, lwd=1)
 
 cumdf<-cumsum(z1^2/sum(z1^2)) 
-cumsum(z1^2/sum(z1^2)) #Cumulative Proportion
-plot(1:9,cumdf,type="l",main="Cumulative proportion", xlab="PC's", ylab= "Prop. Var. Explained", ylim=c(0,1))
+c0<-cumsum(z1^2/sum(z1^2)) #Cumulative Proportion
+c0
+
+#plot(1:9,cumdf,type="l",main="Cumulative proportion", xlab="PC's", ylab= "Prop. Var. Explained", ylim=c(0,1))
 #1st 5 will account for ~85% of the variance; keep 5
+
+library(adegenet)
+l3<-find.clusters(X1, max.n.clust=9)
+names(l3)
 
 lab_to_col = function (labels){
 cols = rainbow (length(unique(labels)))
@@ -663,8 +672,8 @@ cols[as.numeric (as.factor(labels))]
 
 par(mfrow=c(1,2))
 
-l1<-plot(pca1$x[,1], pca1$x[,2], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC1', ylab='PC2')
-l2<-plot(pca1$x[,4], pca1$x[,5], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC4', ylab='PC5')
+p1<-plot(pca1$x[,1], pca1$x[,2], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC1', ylab='PC2')
+p2<-plot(pca1$x[,4], pca1$x[,5], col = lab_to_col(X0$play_type), pch = 20, xlab = 'PC4', ylab='PC5')
 mtext("Comparison of PC 1 & 2 vs 4 & 5", side= 3, line= -2, outer=TRUE, cex.main= 1.5)
 
 library(plotly)
