@@ -238,7 +238,9 @@ plot_histogram_by_target_level <- function(df, continuous_variable, binary_targe
 
 plot_scree <- function(df, features, scale=TRUE, prop_var_color="#00BFC4", prop_var_linetype="dashed", cum_var_color="#F8766D", 
                        cum_var_linetype="dashed", round_digits=3, prop_txt_vjust=-0.2, prop_txt_hjust=-0.1, cum_txt_vjust=-0.75, 
-                       cum_txt_hjust=0.8, annotate_text=TRUE, add_table=TRUE, extend_x_by=2, table_x=Inf, table_y=Inf){
+                       cum_txt_hjust=0.8, annotate_text=TRUE, add_table=TRUE, extend_x_by=1, table_x=Inf, table_y=Inf,
+                       title="Proportion of Variance Explained by Principal Component", xlabel="Principal Component",
+                       ylabel="Proportion of Variance Explained"){
   
   X <- df[,features]
   X <- as.matrix(X)
@@ -265,7 +267,11 @@ plot_scree <- function(df, features, scale=TRUE, prop_var_color="#00BFC4", prop_
     geom_point(mapping=aes(x=principal_component, y=cum_variance_explained), color=cum_var_color) + 
     scale_x_continuous(labels=paste0("PC",seq(from=1, to=num_components, by=1)),
                        breaks=seq(from=1, to=num_components, by=1)) +
-    coord_cartesian(xlim=c(1, num_components+extend_x_by), clip='off')
+    coord_cartesian(xlim=c(1, num_components+extend_x_by), clip='off') + 
+    theme_minimal() +
+    ggtitle(title) +
+    xlab(xlabel) +
+    ylab(ylabel)
   
   
   if(annotate_text){
