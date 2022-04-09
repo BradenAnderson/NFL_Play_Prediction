@@ -740,6 +740,9 @@ calculate_test_set_performance <- function(model, test_df, label="play_type", cl
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
 
+
+# =================================================== FUNCTIONS FOR LOGISTIC REG ADDED COMPLEXITY SEARCH ===================================================
+
 generate_all_possible_interactions <- function(features){
   
   interaction_terms <- c()
@@ -811,13 +814,6 @@ generate_all_model_feature_sets <- function(base_model_features, candidate_inter
   return(all_model_feature_sets)
   
 }
-
-
-# =================================================== FUNCTIONS FOR LOGISTIC REG ADDED COMPLEXITY SEARCH ===================================================
-
-
-
-
 
 # =================================================== END FUNCTIONS FOR LOGISTIC REG ADDED COMPLEXITY SEARCH ===================================================
 

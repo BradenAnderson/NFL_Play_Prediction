@@ -235,7 +235,7 @@ plot_histogram_by_target_level <- function(df, continuous_variable, binary_targe
 }
 
 
-
+# Function to perform Principal Component Analysis and then generate the associated Scree Plot. 
 plot_scree <- function(df, features, scale=TRUE, prop_var_color="#00BFC4", prop_var_linetype="dashed", cum_var_color="#F8766D", 
                        cum_var_linetype="dashed", round_digits=3, prop_txt_vjust=-0.2, prop_txt_hjust=-0.1, cum_txt_vjust=-0.75, 
                        cum_txt_hjust=0.8, annotate_text=TRUE, add_table=TRUE, extend_x_by=1, table_x=Inf, table_y=Inf,
@@ -298,8 +298,6 @@ plot_scree <- function(df, features, scale=TRUE, prop_var_color="#00BFC4", prop_
 }
 
 
-
-
 # Measure --> can be "Gain", "Cover" or "Frequency"
 plot_lgbm_feature_importance <- function(model, relative_percentages=FALSE, measure="Gain", num_features=15L){
   
@@ -315,6 +313,8 @@ plot_lgbm_feature_importance <- function(model, relative_percentages=FALSE, meas
 
 # =================================================== END PLOTTING FUNCTIONS ===================================================
 
+
+# =================================================== MODELING FUNCTIONS ===================================================
 
 cv_added_complexity_models <- function(df, base_model_features, candidate_interaction_features, target="play_type", seed_number=42, 
                                        caret_cv_method="cv", caret_cv_folds=5, save_every=5, base_save_name="./added_compelxity_search",
@@ -376,9 +376,6 @@ cv_added_complexity_models <- function(df, base_model_features, candidate_intera
   return(final_result_df)
 }
 
-
-
-# =================================================== MODELING FUNCTIONS ===================================================
 
 get_dataset_splits <- function(df, seed=42, train_pct=0.8, test_pct=0.1, valid_pct=0.1){
   
