@@ -1,0 +1,143 @@
+---
+title: "Complex Logistic Reg LASSO"
+author: "Hien Lam"
+date: "4/7/2022"
+output: html_document
+---
+## Section 1
+
+Load necessary libraries
+```{r cars}
+library(tidyverse)
+library(nflfastR)
+library(glmnet)
+library(caret)
+library(InformationValue)
+library(splitTools)
+```
+Read in data
+```{r}
+source("./NFL_Project_Functions.R")
+df <- load_clean_data()
+```
+Split data into train, valid, test
+```{r}
+index <- partition(df$play_type, p = c(train = 0.8, valid = 0.1, test = 0.1), seed = 42) 
+train <- df[index$train, ]
+valid <- df[index$valid, ]
+test <- df[index$test, ]
+```
+## Section 2.1: Complex logistic regression: LASSO
+```{r}
+x <- model.matrix(play_type~.+down*pt_run_props+goal_to_go*pt_run_props+pos_to*pt_run_props+down*pos_to+down*goal_to_go+pos_to*game_seconds_remaining+pos_to*score_differential+pos_to*td_prob+pos_to*temp+pos_to*wp+down*yardline_100+down*game_seconds_remaining+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+down*pt_run_props+goal_to_go*yardline_100+goal_to_go*ydstogo+goal_to_go*score_differential+goal_to_go*fg_prob+goal_to_go*td_prob+goal_to_go*wp+goal_to_go*pt_run_props, train)
+y <- train$play_type
+xvalid <- model.matrix(play_type~.+down*pt_run_props+goal_to_go*pt_run_props+pos_to*pt_run_props+down*pos_to+down*goal_to_go+pos_to*game_seconds_remaining+pos_to*score_differential+pos_to*td_prob+pos_to*temp+pos_to*wp+down*yardline_100+down*game_seconds_remaining+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+down*pt_run_props+goal_to_go*yardline_100+goal_to_go*ydstogo+goal_to_go*score_differential+goal_to_go*fg_prob+goal_to_go*td_prob+goal_to_go*wp+goal_to_go*pt_run_props, valid)
+yvalid <- valid$play_type
+
+lasso.fit <- glmnet(x, y, alpha=1, family = 'binomial')
+plot(lasso.fit, label = T)
+plot(lasso.fit, xvar="lambda")
+
+cv.out <- cv.glmnet(x, y, alpha=1, family='binomial')
+plot(cv.out) #  45-61 preds
+
+bestlambda <- cv.out$lambda.min
+bestlambda # 0.0003227961
+lasso.pred <- predict(lasso.fit, s=bestlambda, newx = xvalid)
+InformationValue::confusionMatrix(yvalid, lasso.pred, threshold = .5)
+tab <- table(lasso.pred>.5, yvalid, dnn = c('predicted', 'actual'))
+sum(diag(tab))/sum(tab)*100
+# acc 69.16569
+options(scipen = 9999)
+coef(lasso.fit, s=bestlambda) 
+```
+## Section 2.2: Fit into glm
+```{r}
+mod2 <- glm(play_type~.+down*pt_run_props+goal_to_go*pt_run_props+pos_to+pt_run_props+down*pos_to+down*goal_to_go+game_seconds_remaining*pos_to+score_differential*pos_to+td_prob*pos_to+temp*pos_to+wp*pos_to+yardline_100*down+game_seconds_remaining*down+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+yardline_100*goal_to_go+goal_to_go*ydstogo+goal_to_go*score_differential+ goal_to_go*fg_prob+goal_to_go*td_prob+goal_to_go*wp, data=train, family = 'binomial')
+summary(mod2) # some concerning p-values
+
+# remove goal_to_go*ydstogo, temp*pos_to, temp
+mod2 <- glm(play_type~.-temp+down*pt_run_props+goal_to_go*pt_run_props+pos_to+pt_run_props+down*pos_to+down*goal_to_go+game_seconds_remaining*pos_to+score_differential*pos_to+td_prob*pos_to+wp*pos_to+yardline_100*down+game_seconds_remaining*down+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+yardline_100*goal_to_go+goal_to_go*score_differential+ goal_to_go*fg_prob+goal_to_go*td_prob+goal_to_go*wp, data=train, family = 'binomial')
+summary(mod2)
+pred.val <- predict(mod2, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(valid$play_type, pred.val) # auroc 0.7785
+optimal <- optimalCutoff(valid$play_type, pred.val)[1]
+optimal # 0.509486
+# set up confusion matrix with caret
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc 0.7152 sensi 0.5980 speci 0.7967
+
+# remove div_game, score_differential*pos_to
+mod2 <- glm(play_type~.-temp-div_game+down*pt_run_props+goal_to_go*pt_run_props+pos_to+pt_run_props+down*pos_to+down*goal_to_go+game_seconds_remaining*pos_to+td_prob*pos_to+wp*pos_to+yardline_100*down+game_seconds_remaining*down+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+yardline_100*goal_to_go+goal_to_go*score_differential+ goal_to_go*fg_prob+goal_to_go*td_prob+goal_to_go*wp, data=train, family = 'binomial')
+summary(mod2)
+pred.val <- predict(mod2, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(valid$play_type, pred.val) # auroc 0.7785
+# set up confusion matrix with caret
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc 0.7159 sensi 0.5978 speci 0.7980
+
+# remove roof, wind, goal_to_go*td_prob
+mod2 <- glm(play_type~.-roof-wind-temp-div_game+down*pt_run_props+goal_to_go*pt_run_props+pos_to+pt_run_props+down*pos_to+down*goal_to_go+game_seconds_remaining*pos_to+td_prob*pos_to+wp*pos_to+yardline_100*down+game_seconds_remaining*down+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+yardline_100*goal_to_go+goal_to_go*score_differential+ goal_to_go*fg_prob+goal_to_go*wp, data=train, family = 'binomial')
+summary(mod2)
+pred.val <- predict(mod2, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(valid$play_type, pred.val) # auroc 0.7787
+# set up confusion matrix with caret
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc 0.7151 sensi 0.5969 speci 0.7974
+```
+## Section 2.3: Validate on test set
+```{r}
+pred.test <- predict(mod2, test, type = 'response')
+test$play_type <- ifelse(test$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(test$play_type, pred.test) # auroc 0.7828
+optimal <- optimalCutoff(test$play_type, pred.test)[1]
+optimal # 0.4827897
+# set up confusion matrix with caret
+pred.test <-ifelse(pred.test>.5,"run","pass") %>% as.factor()
+levels(pred.test)
+test$play_type <- ifelse(test$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.test, test$play_type, positive = 'run')
+# acc 0.7201 sensi 0.6040 speci 0.8010
+```
+Plot all ROC
+```{r}
+library(ggROC)
+
+index <- partition(df$play_type, p = c(train = 0.8, valid = 0.1, test = 0.1), seed = 42)
+train <- df[index$train, ]
+valid <- df[index$valid, ]
+test <- df[index$test, ]
+
+mod <- glm(play_type~.-div_game-roof-temp, family = binomial, data = train)
+pred.test.simp <- predict(mod, test, type = 'response')
+
+mod2 <- glm(play_type~.-roof-wind-temp-div_game+down*pt_run_props+goal_to_go*pt_run_props+pos_to+pt_run_props+down*pos_to+down*goal_to_go+game_seconds_remaining*pos_to+td_prob*pos_to+wp*pos_to+yardline_100*down+game_seconds_remaining*down+down*ydstogo+down*score_differential+down*fg_prob+down*td_prob+down*wp+yardline_100*goal_to_go+goal_to_go*score_differential+ goal_to_go*fg_prob+goal_to_go*wp, data=train, family = 'binomial')
+pred.test.comp <- predict(mod2, test, type = 'response')
+
+
+roc_lda = roc(response = dx$play_type, predictor = modPred2)
+roc_logreg_simp = roc(response = test$play_type, predictor = pred.test.simp)
+roc_logreg_comp = roc(response = test$play_type, predictor = pred.test.comp)
+
+auc(roc_lda) # 0.6757
+auc(roc_logreg_simp) # 0.7771
+auc(roc_logreg_comp) # 0.7828
+
+ggroc(list(simple_log_reg = roc_logreg_simp, complex_log_reg_lasso = roc_logreg_comp, LDA = roc_lda)) + geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), color="grey", linetype="dashed") + theme_minimal() + ggtitle('ROC Curves across all Methods')
+```
+
+
+
+
