@@ -1,0 +1,83 @@
+---
+title: "scratch_paper"
+author: "Braden Anderson"
+date: "3/28/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+getwd()
+```
+
+```{r}
+source("./NFL_Project_Functions.R")
+
+clean_df <- load_clean_data()
+```
+
+
+```{r}
+
+# Split data into training, validation, and test
+# Train --> 80%
+# Validation --> 10%
+# Final Test --> 10%
+#Cross validation set = Train + Validation --> 90%
+datasets <- get_dataset_splits(df=clean_df)
+
+# Grab the data sets returned from get_dataset_splits function
+cv_df <- datasets$cross_validation
+train_df <- datasets$train
+test_df <- datasets$test
+val_df <- datasets$valid
+
+```
+
+
+
+
+```{r}
+
+base_features <- c("yardline_100", "game_seconds_remaining", "down", 
+                   "goal_to_go", "ydstogo", "score_differential",
+                   "fg_prob", "td_prob", "wp", 
+                   "wind", "pos_to", "pt_run_props")
+
+
+candidate_interactions <- c("down", "goal_to_go", "yardline_100", "ydstogo", "score_differential", "td_prob", "pt_run_props")
+
+complex_models_cv <- cv_added_complexity_models(df=cv_df,
+                                                base_model_features=base_features,
+                                                candidate_interaction_features=candidate_interactions,
+                                                base_save_name = "./model_checkpoint", 
+                                                save_every = 2000,
+                                                caret_cv_folds=3)
+
+```
+
+
+```{r}
+
+base_features <- c("yardline_100", "game_seconds_remaining", "down", 
+                   "goal_to_go", "ydstogo", "score_differential",
+                   "fg_prob", "td_prob", "wp", 
+                   "wind", "pos_to", "pt_run_props")
+
+
+candidate_interactions <- c("down", "goal_to_go")
+
+complex_models_cv <- cv_added_complexity_models(df=cv_df,
+                                                base_model_features=base_features,
+                                                candidate_interaction_features=candidate_interactions,
+                                                base_save_name = "./temp", 
+                                                save_every = 2000,
+                                                caret_cv_folds=3)
+
+```
+
+
+```{r}
+complex_models_cv
+```
+
