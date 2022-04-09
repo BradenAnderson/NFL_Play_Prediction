@@ -1,6 +1,7 @@
 source("./NFL_Project_Function_Helpers.R")
 
-
+# Function to load play by play NFL data using NFLfastR, and also clean the dataset so that it only contains
+# the features and observations relevant to the modeling conducting in this project. 
 load_clean_data <- function(start_year=2018, end_year=2021, save_path=NULL, remove_run_props=FALSE, 
                             remove_pass_props=TRUE, save_dataset=FALSE){
   
