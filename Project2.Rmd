@@ -661,10 +661,6 @@ c0
 #plot(1:9,cumdf,type="l",main="Cumulative proportion", xlab="PC's", ylab= "Prop. Var. Explained", ylim=c(0,1))
 #1st 5 will account for ~85% of the variance; keep 5
 
-library(adegenet)
-l3<-find.clusters(X1, max.n.clust=9)
-names(l3)
-
 lab_to_col = function (labels){
 cols = rainbow (length(unique(labels)))
 cols[as.numeric (as.factor(labels))]
