@@ -1,0 +1,147 @@
+---
+title: "Simple Logistic Regression"
+author: "Hien Lam"
+date: "4/8/2022"
+output: html_document
+---
+Load necessary libraries
+```{r cars}
+library(tidyverse)
+library(nflfastR)
+library(splitTools)
+library(glmnet)
+library(car) # to use vif()
+library(MASS) # to use confint()
+library(caret)
+library(InformationValue)
+```
+Read in data
+```{r}
+source("./NFL_Project_Functions.R")
+df <- load_clean_data() %>% select(-pt_run_props)
+```
+Split data into train, valid, test
+```{r}
+index <- partition(df$play_type, p = c(train = 0.8, valid = 0.1, test = 0.1), seed = 42) 
+train <- df[index$train, ]
+valid <- df[index$valid, ]
+test <- df[index$test, ]
+```
+Simple logistic regression: Custom model on validate dataset
+```{r}
+options(scipen = 9999) # remove scientific notation
+
+# confirm run is the successful outcome
+levels(df$play_type)
+
+ # run all vars. insig div_game, roof (all levels except retractable)
+mod <- glm(play_type~., family = binomial, data=train)
+summary(mod)
+vif(mod) # 6-7 vifs for yardline_100, score_differential, wp
+pred.val <- predict(mod, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1)
+AUROC(actuals=valid$play_type, predictedScores=pred.val) # 0.7157539
+
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc .6631 sensi .7725 speci .5060
+
+# remove div_game. insig roof (outdoors, retractable), temp .05; remove roof
+mod <- glm(play_type~.-div_game, family = binomial, data = train) 
+summary(mod)
+pred.val <- predict(mod, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1)
+AUROC(actuals=valid$play_type, predictedScores=pred.val) # 0.7155672
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc .6631 sensi .7720 speci .5068
+
+# all are sig including temp
+mod <- glm(play_type~.-div_game-roof, family = binomial, data = train)
+summary(mod)
+pred.val <- predict(mod, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1)
+AUROC(actuals=valid$play_type, predictedScores=pred.val) # 0.7158862
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc .6638 sensi .7727 speci .5073
+
+# removed temp due to -46% corr of wind and temp.
+mod <- glm(play_type~.-div_game-roof-temp, family = binomial, data = train)
+summary(mod)
+vif(mod) # did not change from base model but not too concerning in the first place
+pred.val <- predict(mod, valid, type = 'response')
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(valid$play_type, pred.val) # auroc 0.7157
+optimal <- optimalCutoff(valid$play_type, pred.val)[1]
+optimal # 0.4772449
+# set up confusion matrix with caret
+pred.val <-ifelse(pred.val>.5,"run","pass") %>% as.factor()
+levels(pred.val)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
+# acc 0.6638 sensi 0.7725 speci 0.5075
+# all are sig and removed possible multicollinearity between temp and wind
+# similar acc, sensi, and speci as base model but with 3 less predictors
+```
+Simple logistic regression: Custom - diagnostics, coefficients, confidence interval
+```{r}
+options(scipen = 9999) # remove scientific notation
+mod$coefficients # logit coefficients
+exp(mod$coefficients) # exponentiate the coefficients to get log odds
+confint(mod, level=.95) # logit confidence interval
+exp(confint(mod)) # exponentiate ci to get log odds
+plot(cooks.distance(mod), type = 'h') # cook's d. looks great
+which(influence.measures(mod)$is.inf[,'cook.d'] ) # no influential observations
+scatter.smooth(1:102123, rstandard(mod, type='deviance'), col='gray') # residuals
+```
+Simple logistic regression: Custom model on test set
+```{r}
+pred.test <- predict(mod, test, type = 'response')
+test$play_type <- ifelse(test$play_type=="pass", 0, 1) # to use plotROC()
+plotROC(test$play_type, pred.test) # auroc 0.713
+optimal <- optimalCutoff(test$play_type, pred.test)[1]
+optimal # 0.4759741
+# set up confusion matrix with caret
+pred.test <-ifelse(pred.test>.5,"run","pass") %>% as.factor()
+levels(pred.test)
+test$play_type <- ifelse(test$play_type==0, 'pass', 'run') %>% as.factor()
+caret::confusionMatrix(pred.test, test$play_type, positive = 'run')
+# acc 0.6582 sensi 0.7764 speci 0.4884
+```
+Simple logistic regression: LASSO
+```{r}
+# reset train, valid, test split
+index <- partition(df$play_type, p = c(train = 0.8, valid = 0.1, test = 0.1), seed = 42) 
+train <- df[index$train, ]
+valid <- df[index$valid, ]
+test <- df[index$test, ]
+
+x <- model.matrix(play_type~., train)
+y <- train$play_type
+xvalid <- model.matrix(play_type~., valid)
+yvalid <- valid$play_type
+
+lasso.fit <- glmnet(x, y, alpha=1, family = 'binomial')
+plot(lasso.fit, label = T)
+plot(lasso.fit, xvar="lambda")
+
+cv.out <- cv.glmnet(x, y, alpha=1, family='binomial')
+plot(cv.out) # 15 preds
+
+bestlambda <- cv.out$lambda.min
+bestlambda # 0.0003247966
+pred.lasso <- predict(lasso.fit, s=bestlambda, newx = xvalid)
+pred.lasso <-ifelse(pred.lasso>.5,"run","pass") %>% as.factor()
+levels(pred.lasso)
+caret::confusionMatrix(pred.lasso, valid$play_type, positive = 'run')
+# acc 0.6329 sensi 0.1945 speci 0.9381
+coef(lasso.fit, s=bestlambda) 
+# lasso model resulted in subpar accuracy and specificity at the expense of sensitivity
+```
