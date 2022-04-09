@@ -138,8 +138,11 @@ plot(cv.out) # 15 preds
 bestlambda <- cv.out$lambda.min
 bestlambda # 0.0003247966
 pred.lasso <- predict(lasso.fit, s=bestlambda, newx = xvalid)
+valid$play_type <- ifelse(valid$play_type=="pass", 0, 1)
+plotROC(valid$play_type, pred.lasso) # auroc 0.7156
 pred.lasso <-ifelse(pred.lasso>.5,"run","pass") %>% as.factor()
 levels(pred.lasso)
+valid$play_type <- ifelse(valid$play_type==0, 'pass', 'run') %>% as.factor()
 caret::confusionMatrix(pred.lasso, valid$play_type, positive = 'run')
 # acc 0.6329 sensi 0.1945 speci 0.9381
 coef(lasso.fit, s=bestlambda) 
