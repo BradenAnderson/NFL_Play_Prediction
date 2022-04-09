@@ -4,8 +4,10 @@ author: "Hien Lam"
 date: "4/8/2022"
 output: html_document
 ---
+## Section 1
+
 Load necessary libraries
-```{r cars}
+```{r}
 library(tidyverse)
 library(nflfastR)
 library(splitTools)
@@ -27,6 +29,8 @@ train <- df[index$train, ]
 valid <- df[index$valid, ]
 test <- df[index$test, ]
 ```
+## Section 2.1
+
 Simple logistic regression: Custom model on validate dataset
 ```{r}
 options(scipen = 9999) # remove scientific notation
@@ -90,6 +94,8 @@ caret::confusionMatrix(pred.val, valid$play_type, positive = 'run')
 # all are sig and removed possible multicollinearity between temp and wind
 # similar acc, sensi, and speci as base model but with 3 less predictors
 ```
+## Section 2.2
+
 Simple logistic regression: Custom - diagnostics, coefficients, confidence interval
 ```{r}
 options(scipen = 9999) # remove scientific notation
@@ -101,6 +107,8 @@ plot(cooks.distance(mod), type = 'h') # cook's d. looks great
 which(influence.measures(mod)$is.inf[,'cook.d'] ) # no influential observations
 scatter.smooth(1:102123, rstandard(mod, type='deviance'), col='gray') # residuals
 ```
+## Section 2.3
+
 Simple logistic regression: Custom model on test set
 ```{r}
 pred.test <- predict(mod, test, type = 'response')
@@ -115,6 +123,8 @@ test$play_type <- ifelse(test$play_type==0, 'pass', 'run') %>% as.factor()
 caret::confusionMatrix(pred.test, test$play_type, positive = 'run')
 # acc 0.6582 sensi 0.7764 speci 0.4884
 ```
+## Section 3
+
 Simple logistic regression: LASSO
 ```{r}
 # reset train, valid, test split
