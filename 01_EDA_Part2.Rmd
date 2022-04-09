@@ -1,0 +1,401 @@
+---
+title: "EDA_rmd"
+author: "Braden Anderson"
+date: "3/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+source("./NFL_Project_Functions.R")
+
+# For loading  clean dataset from .csv
+#clean_df <- fread(input="./clean_play_by_play_2018_to_2021.csv.gz", 
+#            na.strings=c("NA", ""), 
+#            data.table=FALSE           # data.table = FALSE means a data.frame is returned.
+#            )
+
+
+# Function to load 2018-2021 play_by_play data, and save the clean dataset to a .csv.gz file.
+clean_df <- load_clean_data()
+
+```
+
+```{r}
+
+head(clean_df)
+
+```
+
+
+
+```{r}
+
+sapply(clean_df, class)
+
+```
+
+
+```{r}
+
+names(clean_df)
+
+```
+
+```{r}
+nrow(clean_df)
+```
+
+
+
+```{r}
+length(names(clean_df))
+```
+
+```{r}
+missing_columns <- sapply(clean_df, function(x) sum(is.na(x)))
+missing_columns[missing_columns >  0]
+```
+
+
+
+```{r}
+# CATEGORICAL RESPONSE --> play_type
+
+# NUMERIC VARIABLES
+# 1) yardline_100 --> Numeric distance in the number of yards from the opponent's endzone for the posteam.
+# 2) ydstogo --> Numeric yards in distance from either the first down marker or the endzone in goal down situations.
+# 3) fg_prob -- > Predicted probability of the posteam scoring a FG next.
+# 4) td_prob --> Predicted probability of the posteam scoring a TD next.
+# 5) wp --> Estimated win probability for the posteam given the current situation at the start of the given play.
+# 6) vegaswp --> Estimated win probabiity for the posteam given the current situation at the start of the given play, incorporating pre-game Vegas line.
+# 7) cp --> Numeric value indicating the probability for a complete pass based on comparable game situations.
+# 8) temp --> The temperature at the stadium only for 'roof' = 'outdoors' or 'open'.(Source: Pro-Football-Reference)
+# 9) wind --> The speed of the wind in miles/hour only for 'roof' = 'outdoors' or 'open'. 
+# 10) half_seconds_remaining --> Numeric seconds remaining in the half.
+# 11) game_seconds_remaining --> Numeric seconds remaining in the game.
+# 12) score_differential --> Score differential between the posteam and defteam at the start of the play.
+
+# CATEGORICAL VARIABLES
+# 13) goal_to_go --> Binary indicator for whether or not the posteam is in a goal down situation.
+# 14) div_game -->
+# 15) roof --> 
+# 16) down --> 
+```
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="goal_to_go")
+```
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="div_game")
+```
+
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="roof")
+```
+
+
+```{r}
+plot_categorical_proportions(df=clean_df, categorical_predictor="down")
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="yardline_100", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    summary_table_loc = "upper_left", 
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="ydstogo", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="fg_prob", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="td_prob", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="wp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+```{r, fig.height=5, fig.width=15}
+
+# Feature is now removed by the load_clean_data function. Need to run the nflFastR load_pbp function
+# to get a dataframe containing this feature
+p <- plot_histogram_by_target_level(continuous_variable="vegaswp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+# All the missing values in cp that we imputed were for run plays....
+
+# Feature is now removed by the load_clean_data function. Need to run the nflFastR load_pbp function
+# to get a dataframe containing this feature
+
+
+p <- plot_histogram_by_target_level(continuous_variable="cp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="temp", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    summary_table_loc = "upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="wind", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="score_differential", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+```{r, fig.height=5, fig.width=15}
+
+# Feature is now removed by the load_clean_data function. Need to run the nflFastR load_pbp function
+# to get a dataframe containing this feature
+
+p <- plot_histogram_by_target_level(continuous_variable="half_seconds_remaining", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=200,
+                                    num_bins_right=200, 
+                                    round_digits=5)
+
+```
+
+
+```{r, fig.height=5, fig.width=15}
+
+p <- plot_histogram_by_target_level(continuous_variable="game_seconds_remaining", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+
+
+```{r, fig.height=5, fig.width=15}
+
+
+p <- plot_histogram_by_target_level(continuous_variable="pt_run_props", 
+                                    df=clean_df, 
+                                    test_type="welches_t", 
+                                    means_table_plot="Left", 
+                                    means_test_table_loc="upper_right", 
+                                    summary_table_plot="Right", 
+                                    summary_table_loc="upper_left",
+                                    num_bins_left=50,
+                                    num_bins_right=50, 
+                                    round_digits=5)
+
+```
+
+
+# Summary statistics
+```{r}
+
+library(arsenal)
+
+df <- load_clean_data(remove_run_props = FALSE, remove_pass_props = FALSE)
+
+head(df)
+
+```
+
+
+# Dataframe for creating tables of just the numeric features
+```{r}
+numeric_df <- df[,!(sapply(df, is.factor))]
+
+numeric_df[,"play_type"] <- df[,"play_type"]
+
+```
+
+
+```{r}
+
+# Tables seemed to look better when you didn't try to put too many features in a single table.
+# So I broke up the numeric features into a couple different tables.
+
+
+mycontrols  <- tableby.control(test=FALSE, 
+                               total=TRUE,
+                               numeric.test="kwt", cat.test="chisq",
+                               numeric.stats=c("range", "median", "meansd","q1q3"),
+                               cat.stats=c("countpct"),
+                               stats.labels=list(Range='range', MeanSD="meansd", median='Median', q1q3='Q1,Q3'))
+
+numeric_table <-  arsenal::tableby(formula = play_type~., 
+                                   data=numeric_df[,(names(numeric_df) %in% c("play_type","yardline_100", "ydstogo", "score_differential", "game_seconds_remaining"))], 
+                                   control=mycontrols)
+
+summary(numeric_table)
+```
+
+
+```{r}
+
+# Table for some of the numeric features not included above.
+
+numeric_table <-  arsenal::tableby(formula = play_type~., 
+                                   data=numeric_df[,(names(numeric_df) %in% c("play_type","temp", "wind", "pt_run_props", "pt_pass_props"))], 
+                                   control=mycontrols)
+
+summary(numeric_table)
+
+```
+
+
+```{r}
+
+# Table for the rest of the numeric features
+
+numeric_table <-  arsenal::tableby(formula = play_type~., 
+                                   data=numeric_df[,(names(numeric_df) %in% c("play_type","wp", "fg_prob", "td_prob"))], 
+                                   control=mycontrols)
+
+summary(numeric_table)
+```
+
+
+
+```{r}
+
+# Dataframe containing only the factor columns
+factor_df <- df[,(sapply(df, is.factor))]
+
+
+# Table of the factor columns
+factor_table <-  arsenal::tableby(formula = play_type~., 
+                                   data=factor_df, 
+                                   control=mycontrols)
+
+summary(factor_table)
+
+```
+
