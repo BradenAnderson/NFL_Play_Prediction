@@ -1,0 +1,138 @@
+---
+title: "EDA_Final"
+author: "Hien Lam"
+date: "4/8/2022"
+output: html_document
+---
+Load necessary libraries
+```{r cars}
+library(tidyverse)
+library(nflfastR)
+library(cowplot)
+library(RColorBrewer)
+library(GGally)
+```
+Read in data
+```{r}
+source("./NFL_Project_Functions.R")
+df <- load_clean_data()
+```
+Categorical
+```{r}
+# play_type
+table(df$play_type) # count of each play_type
+
+p1 <- df %>% ggplot(aes(x=play_type, fill=play_type)) + geom_bar(position = 'dodge') + 
+    labs(title='Distribution of Play Type', subtitle = 'Response variable', x='Play Type', y='Frequency', fill='Play Type') +
+    scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+# pos_to
+table(df$pos_to) # count of time outs by possession team
+xtabs(~pos_to+play_type, data=df) # count of timeouts per play_type
+
+p2 <- df %>% ggplot(aes(x=pos_to, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Posteam Timeout', subtitle = 'Number of timeouts retained by possession team', x='Timeout', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+# down
+table(df$down) # count of each level
+xtabs(~down+play_type, data=df) # count of level and play_type
+
+p3 <- df %>% ggplot(aes(x=down, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Down', subtitle = 'Down of the given play', x='Down', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+# goal_to_go
+table(df$goal_to_go)
+xtabs(~goal_to_go+play_type, data=df)
+
+p4 <- df %>% ggplot(aes(x=goal_to_go, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Goal to Go', subtitle = 'Binary indicator if the posteam is in a goal down situation', x='Goal to Go', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+# roof
+table(df$roof)
+xtabs(~roof+play_type, data=df)
+
+p5 <- df %>% ggplot(aes(x=roof, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Roof', subtitle = 'Stadium roof type: closed, dome, open, outdoors, retractable', x='Roof', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+# div_game
+table(df$div_game)
+xtabs(~div_game+play_type, data=df)
+
+p6 <- df %>% ggplot(aes(x=div_game, fill=play_type)) + 
+    geom_bar(aes( y=..count../tapply(..count.., ..x.. ,sum)[..x..]), alpha=1) + 
+    labs(title = 'Proportion of Play Type by Division Game', subtitle = 'Binary indicator if the given game was a division game', x='Division Game', y='Proportion', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + 
+    theme_minimal_hgrid() + 
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+plot_grid(p1, p2, p3, p4, p5, p6)
+```
+Numerical
+```{r}
+# score_differential
+q1 <- df %>% ggplot(aes(x=score_differential, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Score Differential', subtitle = 'Between posteam and defteam at the start of the play', x='Score Differential', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# yardline_100
+q2 <- df %>% ggplot(aes(x=yardline_100, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Yard Line', subtitle = "Distance from the opponent's endzone for the posteam", x='Yard line', y = 'Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# ydstogo
+q3 <- df %>% ggplot(aes(x=ydstogo, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Yards Left to Go', subtitle = "From first down marker or endzone in goal down situations", x='Yards to go', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# fg_prob
+q4 <- df %>% ggplot(aes(x=fg_prob, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by FG Probability', subtitle = "Predicted probability of the posteam scoring a FG next", x='Field goal probability', y ='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# td_prob
+q5 <- df %>% ggplot(aes(x=td_prob, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by TD Probability', subtitle = "Predicted probability of the posteam scoring a TD next", x='Tochdown probability', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# wp
+q6 <- df %>% ggplot(aes(x=wp, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Win Probability', subtitle = "For posteam given current situation at start of the play", x='Win probability', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# temp
+q8 <- df %>% ggplot(aes(x=temp, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Temperature', subtitle = "For stadium with `roof` = `outdoors`, `open`, or `retractable`", x='Temperature (Fahrenheit)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# wind
+q9 <- df %>% ggplot(aes(x=wind, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Wind Speed', subtitle = "For stadium with `roof` = `outdoors`, `open`, or `retractable`", x='Wind speed (MPH)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+# game_seconds_remaining
+q7 <- df %>% ggplot(aes(x=game_seconds_remaining, y = play_type, fill=play_type)) + 
+    geom_boxplot() + labs(title = 'Boxplot of Play Type by Time', subtitle = "Seconds remaining in the game", x='Time (seconds)', y='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+
+plot_grid(q1 + theme(legend.position="none"), q2+ theme(legend.position="none"), q3+ theme(legend.position="none"), q4+ theme(legend.position="none"), q5+ theme(legend.position="none"), q6+ theme(legend.position="none"), q7+ theme(legend.position="none"), q8+ theme(legend.position="none"), q9+ theme(legend.position="none"))
+
+# pt_run_props
+df %>% ggplot(aes(x=pt_run_props, y = play_type, fill=play_type)) +
+geom_boxplot() + labs(title = 'Boxplot of Play Type by Run Proportion', subtitle = 'In depth definition here', x='Run Proportion', y='Play Type', fill='Play Type') + scale_fill_brewer(palette = 'Set1') + coord_flip() + theme_half_open()
+```
+Scatterplot Matrix
+```{r}
+library(GGally)
+# select numerical var and response var
+num_df <- df %>% select(which(sapply(.,class)=="numeric"),play_type)
+# scatterplot matrix of numerical vars colored by level of response var
+ggpairs(num_df[, c(1:9)], aes(alpha=.5, color=num_df$play_type), title = 'Scatterplot Matrix of Quantitative Variables Grouped by Play Type') + scale_fill_brewer(palette = 'Set1')
+
+# pt_run_pros
+ggpairs(df[, c(6, 16)], aes(alpha=.5, color=df$play_type), title = 'Scatterplot Matrix of pt_run_props Grouped by Play Type') + scale_fill_brewer(palette = 'Set1')
+```
+
